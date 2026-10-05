@@ -34,8 +34,8 @@ TOURNAMENTS = [
          flag='Только 2 отборочных дня, в таблице нет стартового стека дня', nonstandard=True),
     dict(id='36', folder='Июль-август 2026 36', title='Джимми Саммерфилд 3-6', short='3-6', final_col=None, base=3000, ref='Джимми Саммерфилд 3-6', date='02.08.2026',
          flag='В таблице нет данных (файл — копия 6-7): есть только места из рейтинга', use_table=False),
-    dict(id='67', folder='Август 2026 67', title='Six Seven 6-7', short='6-7', final_col='S', base=2000, ref='Six Seven 6-7', date='22.08.2026',
-         flag='Особая квалификация: в финал проходят топ-8 каждого дня; стек взят из столбца «стэк на ФИНАЛ» (сумма результатов дней), реальный стартовый стек мог отличаться', nonstandard=True),
+    dict(id='67', folder='Август 2026 67', title='Six Seven 6-7', short='6-7', final_col=None, rules='top8', base=2000, ref='Six Seven 6-7', date='22.08.2026',
+         flag='Особая квалификация: в финал проходят топ-8 каждого дня. Стек посчитан по правилам (лучший день + 2000 за каждый день участия + 2000 за финал; остальные игроки — 2000). «25-й финалист» не определялся', nonstandard=True),
     dict(id='37', folder='Август-Сентябрь 2026 3-7', title='Джо Хашем 3-7', short='3-7', final_col='AE', base=3800, ref='Джо Хашем 3-7'),
     dict(id='38', folder='Сентябрь-Октябрь 2026 38', title='Джонатан Томайо 3-8', short='3-8', final_col='U', base=3800, ref='Джонатан Томайо 3-8',
          trophy={1: 1, 2: 1.5, 3: 2}, price_col='W',
@@ -170,6 +170,22 @@ def parse_hunt(ws, players, finalists):
     return dict(hunters=hunters, bounty=bounty[:10], total_ko=sum(h['count'] for h in hunters), total_sum=sum(h['sum'] for h in hunters), busts_col=busts_col)
 
 
+def top8_stacks(players, nd, base):
+    """Правила 6-7: в финал проходят топ-8 каждого дня (дубли заменяются следующим), стек = лучший день +
+    2000 за каждый день участия + 2000 за финал; остальные начинают с base."""
+    q = {}
+    for d in range(nd):
+        ranked = sorted([((p['days'][d]['itog'] or 0), n) for n, p in players.items() if p['days'][d]['played']], key=lambda x: -x[0])
+        picked = 0
+        for rank, (v, n) in enumerate(ranked):
+            if picked >= 8: break
+            if n in q:
+                if rank < 8: q[n] = max(q[n], v)
+                continue
+            q[n] = v; picked += 1
+    return {n: v + 2000 * players[n]['visited'] + 2000 for n, v in q.items()}
+
+
 def rank_desc(values):
     """спортивный ранг: 1 = максимум; одинаковые значения делят место"""
     srt = sorted(values, reverse=True)
@@ -288,6 +304,7 @@ def main():
         fin = events[fin_event]
         day_events = [fin_event - len(days) + i for i in range(len(days))]
         players = parse_players(ws, cfg, days, set(fin)) if cfg.get('use_table', True) else {}
+        t8 = top8_stacks(players, len(days), cfg['base']) if cfg.get('rules') == 'top8' else None
         trophy = cfg.get('trophy')
         rows = []
         for name, ev in fin.items():
@@ -297,13 +314,14 @@ def main():
             elif p is None:
                 result['quality'].append(f"{cfg['title']}: финалист «{name}» не найден в таблице, стек = только базовый бонус")
                 p = dict(days=[dict(n=d['n'], played=False, addon=None, exit=None, itog=None, price=None) for d in days], visited=0, raw=None, price=None)
-            have_stack = cfg['final_col'] is not None
+            have_stack = cfg['final_col'] is not None or t8 is not None
             stack = None
             if have_stack:
                 tro = 0
                 if trophy and p['price']:
                     tro = p['price'] * trophy.get(p['visited'], 0)
                 stack = cfg['base'] + (p['raw'] or 0) + tro
+                if t8 is not None: stack = t8.get(name, cfg['base'])
             dd = []
             for d, e in zip(p['days'], day_events):
                 dev = events.get(e, {})
