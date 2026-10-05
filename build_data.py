@@ -217,15 +217,26 @@ def build_2025(notes, keep=None):
         norm = lambda n: ALIAS25.get(n, ALIASES.get(n, n))
         st = {}
         for nm, v in stacks: st.setdefault(norm(nm), v)
-        pl = [norm(n) for n in places]
+        pl_raw = [norm(n) for n in places]
+        pl, seen = [], set()
+        for n in pl_raw:                      # один человек под разными написаниями -> оставляем лучшее место
+            if n in seen:
+                notes.append(f"{meta.get('title', key)}: «{n}» указан в списке дважды — оставлено лучшее место.")
+                continue
+            seen.add(n); pl.append(n)
         has = bool(st)
-        if len(set(pl)) != len(pl):
-            notes.append(f"{meta.get('title', key)}: в списке мест повторяются имена: " + ', '.join(sorted({n for n in pl if pl.count(n) > 1})))
         if has:
-            extra = [n for n in st if n not in pl]
-            newc = [n for n in pl if n not in st]
-            if extra: notes.append(f"{meta['title']}: в таблице стеков есть игроки без места в финале (исключены): " + ', '.join(extra))
+            # В списке итогов за игроками финала идут все остальные из общей таблицы, отсортированные по стеку
+            # (они финал не играли). Хвост = максимальный суффикс с невозрастающими стеками из таблицы.
+            vals = [st.get(n) for n in pl]
+            k = len(vals) - 1
+            while k > 0 and vals[k - 1] is not None and vals[k] is not None and vals[k - 1] >= vals[k]: k -= 1
+            nplay = max(k, 1)
+            skipped = pl[nplay:]
+            newc = [n for n in pl[:nplay] if n not in st]
+            if skipped: notes.append(f"{meta['title']}: в финале сыграли {nplay} игроков; ещё {len(skipped)} из общей таблицы стоят в конце списка результатов без игры и исключены.")
             if newc: notes.append(f"{meta['title']}: {len(newc)} игроков пришли сразу в финал со стартовым стеком {base}.")
+            pl = pl[:nplay]
         rows = []
         for i, n in enumerate(pl, 1):
             rows.append(dict(name=n, place=i, points=None, visits=None, stack=(st.get(n, base) if has else None), days=[]))
