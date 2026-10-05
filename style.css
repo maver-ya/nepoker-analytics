@@ -260,3 +260,45 @@ table.heat td.l a.pl{border-bottom:1px dotted var(--mute)}
 }
 
 @media (max-width:640px){ .tw table{min-width:0} table.heat{min-width:100%} }
+
+/* ===== бургер-меню и таблицы по ширине экрана ===== */
+.burger{display:none}
+@media (max-width:640px){
+  .top{position:sticky}
+  .top-in{flex-wrap:nowrap;align-items:center}
+  .gs{order:0;flex:1 1 auto;min-width:0}
+  .burger{order:3;display:inline-flex;flex-direction:column;justify-content:center;gap:4px;width:40px;height:36px;padding:0 9px;border:1px solid rgba(255,255,255,.28);border-radius:8px;background:rgba(255,255,255,.1);cursor:pointer;flex:0 0 auto}
+  .burger span{display:block;height:2px;border-radius:2px;background:#fff;transition:transform .2s,opacity .2s}
+  .top.menu-open .burger span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+  .top.menu-open .burger span:nth-child(2){opacity:0}
+  .top.menu-open .burger span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+  nav{display:none;position:absolute;left:0;right:0;top:100%;margin:0;padding:6px 12px 12px;flex-direction:column;flex-wrap:nowrap;overflow:visible;background:var(--dark);box-shadow:0 12px 24px rgba(0,0,0,.35);border-top:1px solid rgba(255,255,255,.12);order:4}
+  .top.menu-open nav{display:flex}
+  nav a{padding:12px 12px;font-size:16px;border-radius:8px;white-space:normal}
+  nav a+a{border-top:1px solid rgba(255,255,255,.08)}
+  /* таблицы: влезают в экран */
+  .tw{overflow-x:auto}
+  .tw table{width:100%;table-layout:auto}
+  .rtab{table-layout:fixed}
+  .rtab th:nth-child(1),.rtab td:nth-child(1){width:34px}
+  .rtab th:nth-child(4),.rtab td:nth-child(4){width:62px}
+  .rtab th:nth-child(5),.rtab td:nth-child(5){width:46px}
+  .rtab th:nth-child(6),.rtab td:nth-child(6){width:50px}
+  .rtab td.l,.rtab th.l{min-width:0;max-width:none;position:static;white-space:normal;overflow-wrap:anywhere}
+  .rtab .bar{display:none}
+  .rtab th,.rtab td{padding:6px 4px;font-size:12.5px}
+  .dtab{table-layout:fixed}
+  .dtab th:nth-child(1),.dtab td:nth-child(1){width:34px}
+  .dtab td.l,.dtab th.l{min-width:0;max-width:none;position:static;white-space:normal;overflow-wrap:anywhere}
+  .dtab th,.dtab td{padding:6px 3px;font-size:12.5px}
+  .ptab,.htab,.mt1,.ht{table-layout:auto}
+  .ptab td.l,.htab td.l,.mt1 td.l,.ht td.l{position:static;min-width:0;max-width:none;white-space:normal;overflow-wrap:anywhere}
+  .tall{overflow:auto}
+  .tall td.l,.tall th.l{position:sticky}
+  table.heat td.l,table.heat th.l{position:sticky}
+}
+
+@media (max-width:640px){
+  table.cmp th,table.cmp td{white-space:normal;overflow-wrap:anywhere}
+  .ht th,.ht td{padding:6px 4px}
+}

@@ -190,7 +190,7 @@
         kpi(t.corr == null ? '—' : f1(t.corr), 'корреляция ранга стека и места') + kpi(f1(t.top3_stack_avg_place), 'среднее место трёх крупнейших стеков') + '</div>';
       h += '<h2>Стек → итог</h2><p class="note">Светлый круг — место по стеку, цветной — итоговое место; двигайте ползунок или нажмите «Повторить». Зелёный: обыграл свой стек, красный: не оправдал.</p><div class="raceui"><button class="chip" id="rplay">▶ Повторить</button><input type="range" id="rr" min="0" max="100" value="100" aria-label="Ход финала"><span id="rlab" class="note"></span></div><div class="chart">' + dumbbell(t) + '</div>' + capDumb(t);
     }
-    h += '<h2>Результаты финала</h2><div class="tw"><table class="rtab"><thead><tr><th>Место</th><th class="l">Игрок</th><th>Дней</th>' + (t.stack_available ? '<th>Стек финала</th><th>Ранг стека</th><th>Δ мест</th>' : '') + '<th>Очки рейтинга</th></tr></thead><tbody>';
+    h += '<h2>Результаты финала</h2><div class="tw"><table class="rtab"><thead><tr><th>' + (MOB ? '№' : 'Место') + '</th><th class="l">Игрок</th><th>Дней</th>' + (t.stack_available ? (MOB ? '<th>Стек</th><th>Ранг</th><th>Δ</th>' : '<th>Стек финала</th><th>Ранг стека</th><th>Δ мест</th>') : '') + '<th>Очки рейтинга</th></tr></thead><tbody>';
     t.rows.forEach(function (r) {
       h += '<tr class="' + (r.place <= 3 ? 'p' + r.place : '') + (r.place === 9 ? ' ft' : '') + '"><td>' + r.place + '</td><td class="l">' + link(r.name) + '</td><td>' + (r.visits == null ? '—' : r.visits) + '</td>';
       if (t.stack_available) {
@@ -213,7 +213,7 @@
   }
   function dayForm(t) {
     if (!t.rows.some(function (r) { return r.days.some(function (d) { return d.place != null; }); })) return '';
-    var h = '<h2>Отборочные дни и дневная форма финалистов</h2><p class="note">В шапке — дата, сколько игроков пришло и какая доля брала добор. В клетках — место финалиста в дне (по очкам рейтинга): чем темнее, тем выше; «—» — не играл.</p><div class="tw"><table><thead><tr><th>Итог</th><th class="l">Игрок</th>' + t.days.map(function (d) { return '<th>День ' + d.n + '<br><span class="note">' + esc(d.date) + '<br>' + d.players + ' игр.' + (d.addon_rate == null ? '' : '<br>добор ' + Math.round(d.addon_rate * 100) + '%') + '</span></th>'; }).join('') + '</tr></thead><tbody>';
+    var h = '<h2>Отборочные дни и дневная форма финалистов</h2><p class="note">В шапке — дата, сколько игроков пришло и какая доля брала добор (на телефоне: Д1, число игроков, % добора). В клетках — место финалиста в дне (по очкам рейтинга): чем темнее, тем выше; «—» — не играл.</p><div class="tw"><table class="dtab"><thead><tr><th>Итог</th><th class="l">Игрок</th>' + t.days.map(function (d) { return MOB ? '<th>Д' + d.n + '<br><span class="note">' + d.players + (d.addon_rate == null ? '' : '<br>' + Math.round(d.addon_rate * 100) + '%') + '</span></th>' : '<th>День ' + d.n + '<br><span class="note">' + esc(d.date) + '<br>' + d.players + ' игр.' + (d.addon_rate == null ? '' : '<br>добор ' + Math.round(d.addon_rate * 100) + '%') + '</span></th>'; }).join('') + '</tr></thead><tbody>';
     t.rows.forEach(function (r) {
       h += '<tr><td>' + r.place + '</td><td class="l">' + link(r.name) + '</td>' + r.days.map(function (d, i) { return heatCell(d.place, t.days[i].players); }).join('') + '</tr>';
     });
@@ -458,7 +458,7 @@
         return '<tr><td class="l"><a class="pl" href="#tournaments/' + x.t + '">' + esc(x.short) + '</a></td><td class="' + (ca ? 'win' : '') + '">' + x.place + '</td><td>' + (x.stack_rank == null ? '—' : x.stack_rank) + '</td><td class="' + (cb ? 'win' : '') + '">' + y.place + '</td><td>' + (y.stack_rank == null ? '—' : y.stack_rank) + '</td></tr>';
       }).join('');
       h += '<p>Счёт по местам: <b>' + aw + ' : ' + bw + '</b> в пользу ' + (aw === bw ? 'никого (поровну)' : esc(disp(aw > bw ? a : b))) + ' (' + common.length + ' общих финалов).</p>';
-      h += '<div class="tw"><table><thead><tr><th class="l">Турнир</th><th>' + esc(disp(a)) + ': место</th><th>ранг стека</th><th>' + esc(disp(b)) + ': место</th><th>ранг стека</th></tr></thead><tbody>' + body + '</tbody></table></div>';
+      h += '<div class="tw"><table><thead><tr><th class="l">Турнир</th><th>' + esc(MOB ? cut(disp(a), 9) : disp(a) + ': место') + '</th><th>' + (MOB ? 'стек' : 'ранг стека') + '</th><th>' + esc(MOB ? cut(disp(b), 9) : disp(b) + ': место') + '</th><th>' + (MOB ? 'стек' : 'ранг стека') + '</th></tr></thead><tbody>' + body + '</tbody></table></div>';
     }
     return h;
   }
@@ -505,7 +505,7 @@
     h += '<h2>1. Проклятие чиплидера</h2><div class="tw"><table class="mt1"><thead><tr><th class="l">Турнир</th><th class="l">Чиплидер по стеку</th><th>Его место</th><th class="l">Победитель</th><th>Ранг стека победителя</th><th>Ср. место топ-3 стеков</th></tr></thead><tbody>';
     stackTs.forEach(function (t) { h += '<tr><td class="l"><a class="pl" href="#tournaments/' + t.id + '">' + esc(t.short) + '</a></td><td class="l">' + link(t.chip_leader.name) + '</td><td class="' + (t.chip_leader.place === 1 ? 'pos' : '') + '">' + t.chip_leader.place + '</td><td class="l">' + link(t.winner.name) + '</td><td>' + t.winner.stack_rank + '</td><td>' + f1(t.top3_stack_avg_place) + '</td></tr>'; });
     h += '</tbody></table></div>';
-    h += '<h2>2. Конвертация стеков</h2><p class="note">Игроки разбиты на четверти по рангу стека внутри своего турнира.</p><div class="tw"><table><thead><tr><th class="l">Четверть по стеку</th><th>Выступлений</th><th>Ср. итоговое место, % поля</th><th>Дошли до финального стола</th><th>В топ-3</th></tr></thead><tbody>';
+    h += '<h2>2. Конвертация стеков</h2><p class="note">Игроки разбиты на четверти по рангу стека внутри своего турнира.</p><div class="tw"><table><thead><tr>' + (MOB ? '<th class="l">Стек</th><th>Игр</th><th>Ср. место</th><th>Ф. стол</th><th>Топ-3</th>' : '<th class="l">Четверть по стеку</th><th>Выступлений</th><th>Ср. итоговое место, % поля</th><th>Дошли до финального стола</th><th>В топ-3</th>') + '</tr></thead><tbody>';
     ['Крупнейшие стеки', 'Выше среднего', 'Ниже среднего', 'Короткие стеки'].forEach(function (nm, i) {
       var a = ES.filter(function (e) { return e.q === i; });
       h += '<tr><td class="l">' + nm + '</td><td>' + a.length + '</td><td>' + Math.round(mean(a.map(function (e) { return e.place / e.n; })) * 100) + '%</td><td>' + Math.round(a.filter(function (e) { return e.place <= 9; }).length / a.length * 100) + '%</td><td>' + Math.round(a.filter(function (e) { return e.place <= 3; }).length / a.length * 100) + '%</td></tr>';
@@ -526,7 +526,7 @@
     }).join('') + '</div>';
   }
   function daysTable() {
-    var h = '<div class="tw"><table><thead><tr><th class="l">Турнир</th>' + [1, 2, 3, 4].map(function (i) { return '<th>День ' + i + ': игроков / добор</th>'; }).join('') + '</tr></thead><tbody>';
+    var h = '<div class="tw"><table><thead><tr><th class="l">Турнир</th>' + [1, 2, 3, 4].map(function (i) { return MOB ? '<th>Д' + i + '</th>' : '<th>День ' + i + ': игроков / добор</th>'; }).join('') + '</tr></thead><tbody>';
     T.forEach(function (t) { h += '<tr><td class="l">' + esc(t.short) + '</td>' + [0, 1, 2, 3].map(function (i) { var d = t.days[i]; return '<td>' + (d ? d.players + ' / ' + (d.addon_rate == null ? '—' : Math.round(d.addon_rate * 100) + '%') : '—') + '</td>'; }).join('') + '</tr>'; });
     return h + '</tbody></table></div>';
   }
@@ -600,7 +600,7 @@
     h += '<div class="grid g4">' + kpi(hu.total_ko, 'нокаутов за турнир') + kpi(fmt(Math.round(hu.total_sum / hu.total_ko)), 'средняя цена нокаута') + kpi(esc(disp(hu.hunters[0].name)), 'охотник №1: ' + hu.hunters[0].count + ' нокаутов') + kpi(fmt(best.best), 'самый дорогой нокаут — ' + esc(disp(best.name))) + '</div>';
     h += '<h2>Лучшие охотники</h2><div class="chart">' + hbars(hs.slice(0, 10).map(function (x) { return { label: disp(x.name), v: x.count, txt: x.count + ' · ср. ' + x.avg, color: x.finalist ? 'var(--green)' : 'var(--mute)' }; })) + '</div>';
     h += cap('Охотник №1 — ' + esc(disp(hu.hunters[0].name)) + ': ' + hu.hunters[0].count + ' нокаутов на ' + fmt(hu.hunters[0].sum) + ' фишек. Выше всех средняя цена нокаута (от 3 выбитых) — ' + esc(disp(hu.hunters.filter(function (x) { return x.count >= 3; }).sort(function (x, y) { return y.avg - x.avg; })[0].name)) + '.');
-    h += '<h2>Все охотники</h2><div class="tw tall"><table class="ht"><thead><tr><th>№</th><th class="l">Игрок</th><th>Нокаутов</th><th>Сумма</th><th>Ср. цена</th><th>Лучший</th><th>Место в финале</th></tr></thead><tbody>' +
+    h += '<h2>Все охотники</h2><div class="tw tall"><table class="ht"><thead><tr><th>№</th><th class="l">Игрок</th><th>' + (MOB ? 'Нок.' : 'Нокаутов') + '</th><th>Сумма</th><th>' + (MOB ? 'Ср.' : 'Ср. цена') + '</th><th>Лучший</th><th>' + (MOB ? 'Место' : 'Место в финале') + '</th></tr></thead><tbody>' +
       hs.map(function (x, i) { return '<tr><td>' + (i + 1) + '</td><td class="l">' + link(x.name) + '</td><td>' + x.count + '</td><td>' + fmt(x.sum) + '</td><td>' + x.avg + '</td><td>' + fmt(x.best) + '</td><td>' + (place[x.name] || '—') + '</td></tr>'; }).join('') + '</tbody></table></div>';
     var bn = hu.bounty.filter(function (x) { return huntAll || x.finalist; }).slice(0, 8);
     h += '<h2>Самые дорогие головы</h2><p class="note">Максимальная цена за голову игрока в ходе турнира.</p><div class="chart">' + hbars(bn.map(function (x) { return { label: disp(x.name), v: x.price, txt: fmt(x.price), color: x.finalist ? 'var(--gold)' : 'var(--mute)' }; })) + '</div>';
@@ -631,6 +631,15 @@
       var r = t.top || t.rows;
       return '<div class="card"><h3><a class="pl" href="#tournaments/' + t.id + '">' + esc(t.title) + '</a> <span class="tag">' + esc(t.final_date || '') + '</span></h3><p style="margin:2px 0 6px">🥇 ' + link(r[0].name) + ' · 🥈 ' + link(r[1].name) + ' · 🥉 ' + link(r[2].name) + '</p><p class="note" style="margin:0">' + t.finalists + ' финалистов · <a href="#report/' + t.id + '">автоотчёт</a></p></div>';
     }).join('') + '</div>';
+  }
+  function setupBurger() {
+    var btn = document.getElementById('burger'), top = document.querySelector('.top'); if (!btn) return;
+    function set(v) { top.classList.toggle('menu-open', v); btn.setAttribute('aria-expanded', v ? 'true' : 'false'); }
+    btn.addEventListener('click', function (e) { e.stopPropagation(); set(!top.classList.contains('menu-open')); });
+    document.getElementById('nav').addEventListener('click', function (e) { if (e.target.closest('a')) set(false); });
+    document.addEventListener('click', function (e) { if (!e.target.closest('.top')) set(false); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') set(false); });
+    window.addEventListener('hashchange', function () { set(false); });
   }
   function setupSearch() {
     var inp = document.getElementById('gs'), box = document.getElementById('gsr'); if (!inp) return;
@@ -701,5 +710,6 @@
   var onMq = function () { MOB = mq.matches; route(true); };
   if (mq.addEventListener) mq.addEventListener('change', onMq); else if (mq.addListener) mq.addListener(onMq);
   setupSearch();
+  setupBurger();
   route();
 })();
