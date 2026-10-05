@@ -193,10 +193,10 @@ F25META = {
 }
 ALIAS25 = {'Богдан Анц': 'Богдан А', 'Богдан Анциферов': 'Богдан А', 'Саша Тяж': 'Саша Тяжелов', 'Асхат': 'grooveman',
            'Асхат Суханбердин': 'grooveman', 'Руфат Макиато': 'Руф', 'Владибир': 'Владимир Vladeebeer',
-           'Владимир Vladecbeer': 'Владимир Vladeebeer', 'Jane': 'Jane 007'}
+           'Владимир Vladecbeer': 'Владимир Vladeebeer', 'Jane': 'Jane 007', 'Jane2007': 'Jane 007'}
 
 
-def build_2025(notes):
+def build_2025(notes, keep=None):
     out = []
     for f in sorted(glob.glob(os.path.join(HERE, 'finals2025', '*.txt'))):
         key = os.path.splitext(os.path.basename(f))[0]
@@ -241,6 +241,12 @@ def build_2025(notes):
             t['winner'] = dict(name=rows[0]['name'], stack_rank=rows[0]['stack_rank'])
             t['corr'] = spearman([-r['stack'] for r in rows], [r['place'] for r in rows])
             t['top3_stack_avg_place'] = st_mean(r['place'] for r in rows if r['stack_rank'] <= 3)
+        # реальные места и размер поля сохраняем, но показываем только игроков, которые есть в 2026 году
+        t['top'] = [dict(name=r['name'], place=r['place'], stack_rank=r.get('stack_rank')) for r in rows[:3]]
+        t['field'] = len(rows)
+        if keep is not None:
+            t['rows'] = [r for r in rows if r['name'] in keep]
+            t['hidden'] = len(rows) - len(t['rows'])
         out.append(t)
     return out
 
@@ -332,7 +338,8 @@ def main():
 
 
     notes25 = []
-    result['tournaments'].extend(build_2025(notes25))
+    keep26 = {r['name'] for t_ in result['tournaments'] for r in t_['rows']}
+    result['tournaments'].extend(build_2025(notes25, keep26))
     for t_ in result['tournaments']: t_.setdefault('year', 2026)
     result['tournaments'].sort(key=lambda t_: tuple(reversed([int(x) for x in t_['final_date'].strip('. ').split('.')])))
     result['notes25'] = notes25
@@ -412,7 +419,7 @@ def main():
                     parts.append(n + (f' (похоже на «{cand[0]}»)' if cand else ''))
                 checks.append(dict(level='warn', tid=cfg['id'], text=f"{cfg['title']}: в таблице есть игроки, которых нет в рейтинге: " + ', '.join(parts) + '. Возможно, это другое написание ника — добавьте в ALIASES.'))
     checks.append(dict(level='info', text=f'Рейтинг считается как сумма {RATING_TOP} лучших результатов (как в формуле Excel); места в финалах восстановлены по очкам: место = (макс. очки / очки)².'))
-    checks.append(dict(level='info', text='Финалы 2025 года восстановлены вручную по картинкам таблиц из чата клуба и по истории сайта результатов (Дойль Брансон, Тощий Джек); возможны опечатки. Для однодневных турниров (Туз Весны, Сателлит, Финал финалистов) есть только места.'))
+    checks.append(dict(level='info', text='Финалы 2025 года восстановлены вручную по картинкам таблиц из чата клуба и по истории сайта результатов (Дойль Брансон, Тощий Джек); возможны опечатки. Для однодневных турниров (Туз Весны, Сателлит, Финал финалистов) есть только места. На сайте показаны только игроки, которые есть в 2026 году.'))
     for q_ in result.get('notes25', []): checks.append(dict(level='info', text=q_))
     result['checks'] = checks
     result['players'] = pl

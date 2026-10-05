@@ -179,7 +179,7 @@
   function pTournaments(id) {
     var t = T.filter(function (x) { return x.id === id; })[0] || T[T.length - 1];
     var h = '<h1>Турниры</h1><div class="chips">' + T.map(function (x) { return '<button class="chip' + (x.id === t.id ? ' on' : '') + '" data-id="' + x.id + '">' + esc(x.short) + '</button>'; }).join('') + '</div>';
-    h += '<h2 style="margin-top:6px">' + esc(t.title) + ' <span class="tag">финал ' + esc(t.final_date || '') + '</span><span class="tag">' + t.finalists + ' финалистов</span></h2>';
+    h += '<h2 style="margin-top:6px">' + esc(t.title) + ' <span class="tag">финал ' + esc(t.final_date || '') + '</span><span class="tag">' + t.finalists + ' финалистов</span></h2>' + (t.hidden ? '<p class="note">Показаны игроки, которые играют и в 2026 году: ' + t.rows.length + ' из ' + t.finalists + '. Остальные скрыты, чтобы не засорять статистику; места и ранги — по полному полю.</p>' : '');
     if (t.flag) h += '<div class="flag">⚠ ' + esc(t.flag) + '</div>';
     if (t.stack_available) {
       h += '<div class="grid g4" style="margin:10px 0">' + kpi(esc(t.chip_leader.name), 'чиплидер — финишировал ' + t.chip_leader.place + '-м') + kpi(esc(t.winner.name), 'победитель — стартовал ' + t.winner.stack_rank + '-м по стеку') +
@@ -293,17 +293,17 @@
   /* ---------- автоотчёт по турниру ---------- */
   function ordinal(n) { return n + '-е'; }
   function reportFacts(t) {
-    var rows = t.rows, f = { t: t, top: rows.slice(0, 3), n: rows.length };
+    var rows = t.rows, f = { t: t, top: t.top || rows.slice(0, 3), n: t.finalists };
     f.table = rows.filter(function (r) { return r.place <= 9; });
     if (t.stack_available) {
       var withS = rows.filter(function (r) { return r.stack_rank != null; });
-      f.leader = withS.filter(function (r) { return r.stack_rank === 1; })[0];
-      f.winner = rows[0];
+      f.leader = withS.filter(function (r) { return r.stack_rank === 1; })[0] || (t.chip_leader ? { name: t.chip_leader.name, place: t.chip_leader.place, stack_rank: 1 } : null);
+      f.winner = (t.top && t.top[0]) || rows[0];
       var cb = withS.filter(function (r) { return r.stack_rank > t.finalists / 2; }).sort(function (x, y) { return y.delta - x.delta; })[0];
       var ls = withS.filter(function (r) { return r.stack_rank <= 3; }).sort(function (x, y) { return x.delta - y.delta; })[0];
       f.comeback = cb && cb.delta > 0 ? cb : null; f.loss = ls && ls.delta < 0 ? ls : null;
       var top9 = withS.filter(function (r) { return r.stack_rank <= 9; }).map(function (r) { return r.name; });
-      f.overlap = f.table.filter(function (r) { return top9.indexOf(r.name) >= 0; }).length;
+      f.overlap = t.hidden ? null : f.table.filter(function (r) { return top9.indexOf(r.name) >= 0; }).length;
     }
     f.dayWinners = t.days.map(function (d, i) { return rows.filter(function (r) { return r.days[i] && r.days[i].place === 1; }).map(function (r) { return r.name; })[0]; });
     var gains = [];
@@ -366,7 +366,7 @@
     });
     c.fillStyle = '#9fc4b0'; c.font = '400 32px system-ui, Arial'; c.fillText('Финальный стол', 70, y + 10); y += 60;
     c.font = '400 36px system-ui, Arial';
-    f.table.slice(3).forEach(function (r, i) { c.fillStyle = '#ffffff'; c.fillText(r.place + '. ' + disp(r.name), 70 + (i % 2) * 480, y + Math.floor(i / 2) * 56); });
+    (f.t.hidden ? [] : f.table.slice(3)).forEach(function (r, i) { c.fillStyle = '#ffffff'; c.fillText(r.place + '. ' + disp(r.name), 70 + (i % 2) * 480, y + Math.floor(i / 2) * 56); });
     c.fillStyle = '#6c8d7c'; c.font = '400 28px system-ui, Arial'; c.fillText(f.n + ' финалистов', 70, 1290);
     var d = c2.getContext('2d'), y2 = cardBase(d, f, 'Главные истории'), items = [];
     if (f.leader) items.push([f.leader.place === 1 ? '👑 Чиплидер победил' : '🪦 Проклятие чиплидера', disp(f.leader.name) + ': стек №1 → ' + f.leader.place + '-е место']);
@@ -588,7 +588,7 @@
     var h = '<h1>О данных</h1><p class="sub">Как собираются цифры и что стоит проверить.</p><div class="cardlist">';
     h += ins('', 'Откуда данные', 'Таблицы турниров 2026 года (лист «Главная») дают результаты отборочных дней и финальный стек. Итоговые места в финалах восстановлены из очков рейтинга по формуле очки = √(N·K)/√место, поэтому место = (максимум очков / очки)². Рейтинг игрока — сумма ' + D.rating_top + ' лучших результатов.');
     h += ins('', 'Стартовый стек финала', 'Итог отборочных (по таблице) + базовый бонус (3 000, для 3-7 и 3-8 — 3 800) + трофеи за охоту, если они считаются отдельно (А-2, 3-8). Номинации не учитываются. Ранг стека — место по размеру стека среди финалистов (1 — самый большой).');
-    h += ins('', 'Финалы 2025 года', 'Стеки и места восстановлены вручную по картинкам таблиц из чата клуба и по истории сайта результатов (Дойль Брансон, Тощий Джек). У однодневных турниров (Туз Весны, Сателлит, Финал финалистов) есть только места. Возможны опечатки и разные написания ников.');
+    h += ins('', 'Финалы 2025 года', 'Стеки и места восстановлены вручную по картинкам таблиц из чата клуба и по истории сайта результатов (Дойль Брансон, Тощий Джек). У однодневных турниров (Туз Весны, Сателлит, Финал финалистов) есть только места. Показаны только игроки, которые есть в 2026 году (остальные скрыты, места и ранги считаются по полному полю). Возможны опечатки и разные написания ников.');
     h += ins('', 'Δ мест', 'Ранг по стеку минус итоговое место. Плюс — игрок финишировал выше, чем стартовал; минус — ниже.');
     h += '</div><h2>Проверка данных</h2>';
     var lv = { warn: ['Проверить', 'bad'], info: ['Заметка', ''] }, ch = (D.checks || []).slice().sort(function (x, y) { return (x.level === 'warn' ? 0 : 1) - (y.level === 'warn' ? 0 : 1); });
@@ -601,7 +601,7 @@
   function recentTournaments() {
     var last = TA.slice(-3).reverse();
     return '<h2>Последние турниры</h2><div class="grid g2">' + last.map(function (t) {
-      var r = t.rows;
+      var r = t.top || t.rows;
       return '<div class="card"><h3><a class="pl" href="#tournaments/' + t.id + '">' + esc(t.title) + '</a> <span class="tag">' + esc(t.final_date || '') + '</span></h3><p style="margin:2px 0 6px">🥇 ' + link(r[0].name) + ' · 🥈 ' + link(r[1].name) + ' · 🥉 ' + link(r[2].name) + '</p><p class="note" style="margin:0">' + t.finalists + ' финалистов · <a href="#report/' + t.id + '">автоотчёт</a></p></div>';
     }).join('') + '</div>';
   }
