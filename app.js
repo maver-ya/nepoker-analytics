@@ -403,13 +403,35 @@
     });
     return out + '</svg>';
   }
+  function setupCompare() {
+    document.querySelectorAll('.cmpsrch').forEach(function (inp) {
+      var box = inp.parentNode.querySelector('.cmpres'), sideId = inp.dataset.side;
+      function find(q) { q = q.trim().toLowerCase(); if (!q) return []; return Object.keys(PA).filter(function (n) { return (n + ' ' + disp(n)).toLowerCase().indexOf(q) >= 0; }).sort(function (x, y) { return PA[y].finals - PA[x].finals; }).slice(0, 8); }
+      function go(n) {
+        var A = document.getElementById('cmpA').value, B = document.getElementById('cmpB').value;
+        if (sideId === 'A') A = n; else B = n;
+        location.hash = '#compare/' + encodeURIComponent(A) + '/' + encodeURIComponent(B);
+      }
+      function show() {
+        var r = find(inp.value);
+        box.innerHTML = r.map(function (n) { return '<a href="#" data-n="' + esc(n) + '">' + esc(disp(n)) + ' <span class="note">' + PA[n].finals + ' фин.</span></a>'; }).join('') || (inp.value.trim() ? '<span class="note" style="padding:8px 12px;display:block">Никого не найдено</span>' : '');
+        box.hidden = !box.innerHTML;
+      }
+      inp.addEventListener('input', show); inp.addEventListener('focus', show);
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var r = find(inp.value); if (r[0]) go(r[0]); } if (e.key === 'Escape') { box.hidden = true; inp.blur(); } });
+      box.addEventListener('mousedown', function (e) { var l = e.target.closest('a[data-n]'); if (l) { e.preventDefault(); go(l.dataset.n); } });
+      document.addEventListener('click', function (e) { if (!e.target.closest('.cmpq')) box.hidden = true; });
+    });
+  }
+
   function pCompare(a, b) {
     var names = cmpOrder();
     if (!a || !PA[a]) a = PA['Богдан А'] ? 'Богдан А' : names[0];
     if (!b || !PA[b] || b === a) b = (PA['Семён Ануфриев'] && a !== 'Семён Ануфриев') ? 'Семён Ануфриев' : names.filter(function (n) { return n !== a; })[0];
     var pa = PA[a], pb = PA[b], bgs = function (n) { return badges(n).map(function (x) { return '<span class="badge ' + x[2] + '"><i>' + x[0] + '</i>' + esc(x[1]) + '</span>'; }).join(''); };
     var h = '<h1>Сравнение игроков</h1><p class="sub">Все данные (2025–2026), без фильтров периода.</p>';
-    h += '<div class="cmpsel"><select id="cmpA" aria-label="Игрок 1">' + selOpts(a) + '</select><span>vs</span><select id="cmpB" aria-label="Игрок 2">' + selOpts(b) + '</select></div>';
+    var side = function (id, sel, ph) { return '<div class="cmpside"><div class="cmpq"><input class="cmpsrch" data-side="' + id + '" type="search" placeholder="' + ph + '" autocomplete="off" aria-label="' + ph + '"><div class="gsr cmpres" hidden></div></div><select id="cmp' + id + '" aria-label="Игрок ' + (id === 'A' ? 1 : 2) + '">' + selOpts(sel) + '</select></div>'; };
+    h += '<div class="cmpsel">' + side('A', a, 'Найти первого игрока…') + '<span>vs</span>' + side('B', b, 'Найти второго игрока…') + '</div>';
     h += '<div class="grid g2"><div class="card"><h3 style="font-size:18px;color:var(--green)">' + link(a) + '</h3><div class="badges">' + bgs(a) + '</div></div><div class="card"><h3 style="font-size:18px;color:var(--gold)">' + link(b) + '</h3><div class="badges">' + bgs(b) + '</div></div></div>';
     var pct = function (p) { return p.finals ? Math.round(p.table / p.finals * 100) : null; };
     var rows = cmpRow('рейтинг', pa.rating_now, pb.rating_now, 'high') + cmpRow('место в рейтинге', pa.rating_rank, pb.rating_rank, 'low', function (v) { return v == null ? '—' : '#' + v; }) +
@@ -638,6 +660,7 @@
     if (tab === 'players' && !arg) { renderPT(); var qi = document.getElementById('q'); qi.addEventListener('input', function () { q = qi.value; renderPT(); }); }
     if (tab === 'tournaments') setupRace();
     if (tab === 'report') drawCards();
+    if (tab === 'compare') setupCompare();
     countUp();
     if (keep !== true) window.scrollTo(0, 0);
   }

@@ -175,3 +175,11 @@ table.heat td,table.heat th{min-width:46px}
 table.heat td:last-child,table.heat th:last-child{min-width:54px;border-left:1px solid var(--line)}
 table.heat td.l a.pl{border-bottom:1px dotted var(--mute)}
 @media (max-width:600px){table.heat td.l,table.heat th.l{min-width:130px;max-width:150px}}
+
+.cmpside{flex:1;min-width:200px;display:grid;gap:6px}
+.cmpq{position:relative}
+.cmpq .cmpsrch{width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
+.cmpq .gsr{top:calc(100% + 4px)}
+.cmpsel{align-items:start}
+.cmpsel span{align-self:center}
+.cmpsel select{width:100%;min-width:0}
