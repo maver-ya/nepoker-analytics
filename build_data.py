@@ -11,6 +11,7 @@
 Места восстанавливаются по формуле рейтинга: очки = sqrt(N*K)/sqrt(место), т.е. место = (макс.очки / очки)^2.
 """
 import openpyxl, glob, json, os, re, sys, statistics as st
+st_mean = st.mean
 from openpyxl.utils import column_index_from_string as ci
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -31,9 +32,9 @@ TOURNAMENTS = [
          flag='Отдельная валюта: финальные фишки выдаются за место в каждом дне', nonstandard=True),
     dict(id='35', folder='Июнь-июль 2026 35', title='Билли Джонсон 3-5', short='3-5', final_col='I', base=3000, ref='Билли Джонсон 3-5',
          flag='Только 2 отборочных дня, в таблице нет стартового стека дня', nonstandard=True),
-    dict(id='36', folder='Июль-август 2026 36', title='Джимми Саммерфилд 3-6', short='3-6', final_col=None, base=3000, ref='Джимми Саммерфилд 3-6',
+    dict(id='36', folder='Июль-август 2026 36', title='Джимми Саммерфилд 3-6', short='3-6', final_col=None, base=3000, ref='Джимми Саммерфилд 3-6', date='02.08.2026',
          flag='В таблице нет данных (файл — копия 6-7): есть только места из рейтинга', use_table=False),
-    dict(id='67', folder='Август 2026 67', title='Six Seven 6-7', short='6-7', final_col=None, base=3000, ref='Six Seven 6-7',
+    dict(id='67', folder='Август 2026 67', title='Six Seven 6-7', short='6-7', final_col=None, base=3000, ref='Six Seven 6-7', date='23.08.2026',
          flag='В таблице нет финального стека'),
     dict(id='37', folder='Август-Сентябрь 2026 3-7', title='Джо Хашем 3-7', short='3-7', final_col='AE', base=3800, ref='Джо Хашем 3-7'),
     dict(id='38', folder='Сентябрь-Октябрь 2026 38', title='Джонатан Томайо 3-8', short='3-8', final_col='U', base=3800, ref='Джонатан Томайо 3-8',
@@ -182,6 +183,68 @@ def spearman(a, b):
     return None if den == 0 else sum((x - ma) * (y - mb) for x, y in zip(ra, rb)) / den
 
 
+# ---------- финалы 2025 года: восстановлены вручную по картинкам таблиц из чата клуба ----------
+F25META = {
+    'JJ': ('JJ25', 'JJ', 2100), 'DnD': ('DD25', 'D&D', 2100), 'KK': ('KK25', 'КК', 2100), 'AA': ('AA25', 'АА', 3100),
+    'TuzVesny': ('TV25', 'Туз Весны', None), 'LR': ('LR25', '2-3', 2000), 'Avto': ('AV25', '4-2', 2000),
+    'FilAivi': ('FA25', '5-2', 2000), 'Dv26': ('D625', '2-6', 2000), 'Beer': ('BR25', '2-7', 2600),
+    'Mario': ('MR25', '2-8', 2100), 'Banany': ('BN25', '2-9', 2000), 'Doyl': ('DB25', '10-2', 2000),
+    'J2': ('J225', 'J-2', 2000), 'Sat2025': ('ST25', 'Сателлит', None), 'FF2025': ('FF25', 'ФФ-2025', None),
+}
+ALIAS25 = {'Богдан Анц': 'Богдан А', 'Богдан Анциферов': 'Богдан А', 'Саша Тяж': 'Саша Тяжелов', 'Асхат': 'grooveman',
+           'Асхат Суханбердин': 'grooveman', 'Руфат Макиато': 'Руф', 'Владибир': 'Владимир Vladeebeer',
+           'Владимир Vladecbeer': 'Владимир Vladeebeer', 'Jane': 'Jane 007'}
+
+
+def build_2025(notes):
+    out = []
+    for f in sorted(glob.glob(os.path.join(HERE, 'finals2025', '*.txt'))):
+        key = os.path.splitext(os.path.basename(f))[0]
+        if key not in F25META: continue
+        tid, short, base = F25META[key]
+        meta, sec, stacks, places = {}, None, [], []
+        for line in open(f, encoding='utf-8').read().splitlines():
+            if line == '[stacks]': sec = 's'; continue
+            if line == '[places]': sec = 'p'; continue
+            if sec is None and '=' in line:
+                k, v = line.split('=', 1); meta[k] = v
+            elif sec == 's' and line.strip():
+                nm, val = line.rsplit(' ', 1); stacks.append((nm.strip(), int(val)))
+            elif sec == 'p' and line.strip():
+                places.append(line.strip())
+        norm = lambda n: ALIAS25.get(n, ALIASES.get(n, n))
+        st = {}
+        for nm, v in stacks: st.setdefault(norm(nm), v)
+        pl = [norm(n) for n in places]
+        has = bool(st)
+        if len(set(pl)) != len(pl):
+            notes.append(f"{meta.get('title', key)}: в списке мест повторяются имена: " + ', '.join(sorted({n for n in pl if pl.count(n) > 1})))
+        if has:
+            extra = [n for n in st if n not in pl]
+            newc = [n for n in pl if n not in st]
+            if extra: notes.append(f"{meta['title']}: в таблице стеков есть игроки без места в финале (исключены): " + ', '.join(extra))
+            if newc: notes.append(f"{meta['title']}: {len(newc)} игроков пришли сразу в финал со стартовым стеком {base}.")
+        rows = []
+        for i, n in enumerate(pl, 1):
+            rows.append(dict(name=n, place=i, points=None, visits=None, stack=(st.get(n, base) if has else None), days=[]))
+        t = dict(nonstandard=False, id=tid, title=meta.get('title', key), short=short, year=2025, final_date=meta.get('final'),
+                 flag=None, base=base, stack_available=has, days=[], finalists=len(rows), rating_event=None, rows=rows, src=meta.get('src'))
+        if meta.get('oneday'): t['flag'] = 'Однодневный турнир: все стартуют с равным стеком, доступны только места.'
+        if meta.get('partial'): t['flag'] = (t['flag'] or '') + ' Опубликованы только места 1–6 из 20 участников.'
+        if has:
+            ranks = rank_desc([r['stack'] for r in rows])
+            tot = sum(max(r['stack'], 0) for r in rows) or 1
+            for r, k in zip(rows, ranks):
+                r['stack_rank'] = k; r['delta'] = k - r['place']; r['stack_share'] = max(r['stack'], 0) / tot
+            lead = min(rows, key=lambda r: r['stack_rank'])
+            t['chip_leader'] = dict(name=lead['name'], place=lead['place'])
+            t['winner'] = dict(name=rows[0]['name'], stack_rank=rows[0]['stack_rank'])
+            t['corr'] = spearman([-r['stack'] for r in rows], [r['place'] for r in rows])
+            t['top3_stack_avg_place'] = st_mean(r['place'] for r in rows if r['stack_rank'] <= 3)
+        out.append(t)
+    return out
+
+
 def main():
     events = load_rating()
     labels = load_labels()
@@ -192,6 +255,7 @@ def main():
             result['quality'].append(f"{cfg['title']}: файл не найден"); continue
         ws = openpyxl.load_workbook(f[0], data_only=True)['Главная']
         days, final_date = parse_days(ws)
+        final_date = final_date or cfg.get('date')
         pod = podium_for(labels, cfg['ref'])
         first = (pod.get('ПЕРВОЕ') or pod.get('ПЕРВЫЙ') or [None])[0]
         second = (pod.get('ВТОРОЕ') or pod.get('ВТОРОЙ') or [None])[0]
@@ -265,6 +329,13 @@ def main():
         for d in dsum: result['events'][str(d['event'])] = dict(label=f"{cfg['short']} · день {d['n']}", kind='day', tid=cfg['id'])
         result['events'][str(fin_event)] = dict(label=f"{cfg['short']} · финал", kind='final', tid=cfg['id'])
         print(f"{cfg['short']:>4}  финал: событие {fin_event:>2}, финалистов {len(rows):>2}, дней {len(days)}, победитель {rows[0]['name']}", file=sys.stderr)
+
+
+    notes25 = []
+    result['tournaments'].extend(build_2025(notes25))
+    for t_ in result['tournaments']: t_.setdefault('year', 2026)
+    result['tournaments'].sort(key=lambda t_: tuple(reversed([int(x) for x in t_['final_date'].strip('. ').split('.')])))
+    result['notes25'] = notes25
 
     # сводка по игрокам
     pl = {}
@@ -341,6 +412,8 @@ def main():
                     parts.append(n + (f' (похоже на «{cand[0]}»)' if cand else ''))
                 checks.append(dict(level='warn', tid=cfg['id'], text=f"{cfg['title']}: в таблице есть игроки, которых нет в рейтинге: " + ', '.join(parts) + '. Возможно, это другое написание ника — добавьте в ALIASES.'))
     checks.append(dict(level='info', text=f'Рейтинг считается как сумма {RATING_TOP} лучших результатов (как в формуле Excel); места в финалах восстановлены по очкам: место = (макс. очки / очки)².'))
+    checks.append(dict(level='info', text='Финалы 2025 года восстановлены вручную по картинкам таблиц из чата клуба и по истории сайта результатов (Дойль Брансон, Тощий Джек); возможны опечатки. Для однодневных турниров (Туз Весны, Сателлит, Финал финалистов) есть только места.'))
+    for q_ in result.get('notes25', []): checks.append(dict(level='info', text=q_))
     result['checks'] = checks
     result['players'] = pl
     npath = os.path.join(HERE, 'names.json')

@@ -164,3 +164,6 @@ table.heat th a.pl{border-bottom:0}
 .cap{margin:8px 2px 0;color:var(--mute);font-size:13.5px}
 polyline.draw{stroke-dasharray:none;animation:none}
 circle.pt{animation:none}
+
+.yrs{display:inline-flex;gap:4px}
+.yrs .chip{padding:3px 9px;font-size:13px}
