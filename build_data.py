@@ -42,6 +42,8 @@ TOURNAMENTS = [
          note='Цены голов в Excel и на сайте турнира расходятся: Богдан А 6125 (Excel) / 6725 (сайт), Артём SUB 1765 / 2365. Взяты данные Excel.'),
 ]
 # если одного человека в разных файлах пишут по-разному: 'как в Excel' -> 'как в рейтинге'
+# False: в базу попадают все игроки 2025 года; True: только те, кто есть в финалах 2026
+ONLY_2026_PLAYERS_FOR_2025 = False
 ALIASES = {'Egrinderolls': 'Егор АА 11', 'Влад Сам': 'Coach krotovski',
            'Матвей МС': 'Матвей Пригожий', 'Саша Немощь': 'Немощь'}  # подтверждено пользователем / чатом
 
@@ -339,7 +341,7 @@ def main():
 
     notes25 = []
     keep26 = {r['name'] for t_ in result['tournaments'] for r in t_['rows']}
-    result['tournaments'].extend(build_2025(notes25, keep26))
+    result['tournaments'].extend(build_2025(notes25, keep26 if ONLY_2026_PLAYERS_FOR_2025 else None))
     for t_ in result['tournaments']: t_.setdefault('year', 2026)
     result['tournaments'].sort(key=lambda t_: tuple(reversed([int(x) for x in t_['final_date'].strip('. ').split('.')])))
     result['notes25'] = notes25
@@ -419,7 +421,7 @@ def main():
                     parts.append(n + (f' (похоже на «{cand[0]}»)' if cand else ''))
                 checks.append(dict(level='warn', tid=cfg['id'], text=f"{cfg['title']}: в таблице есть игроки, которых нет в рейтинге: " + ', '.join(parts) + '. Возможно, это другое написание ника — добавьте в ALIASES.'))
     checks.append(dict(level='info', text=f'Рейтинг считается как сумма {RATING_TOP} лучших результатов (как в формуле Excel); места в финалах восстановлены по очкам: место = (макс. очки / очки)².'))
-    checks.append(dict(level='info', text='Финалы 2025 года восстановлены вручную по картинкам таблиц из чата клуба и по истории сайта результатов (Дойль Брансон, Тощий Джек); возможны опечатки. Для однодневных турниров (Туз Весны, Сателлит, Финал финалистов) есть только места. На сайте показаны только игроки, которые есть в 2026 году.'))
+    checks.append(dict(level='info', text='Финалы 2025 года восстановлены вручную по картинкам таблиц из чата клуба и по истории сайта результатов (Дойль Брансон, Тощий Джек); возможны опечатки. Для однодневных турниров (Туз Весны, Сателлит, Финал финалистов) есть только места.'))
     for q_ in result.get('notes25', []): checks.append(dict(level='info', text=q_))
     result['checks'] = checks
     result['players'] = pl
