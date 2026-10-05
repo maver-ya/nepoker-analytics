@@ -167,3 +167,11 @@ circle.pt{animation:none}
 
 .yrs{display:inline-flex;gap:4px}
 .yrs .chip{padding:3px 9px;font-size:13px}
+
+/* карта: имена в одну строку, колонки турниров фиксированной ширины */
+table.heat{width:max-content;min-width:100%}
+table.heat td.l,table.heat th.l{white-space:nowrap;overflow-wrap:normal;min-width:170px;max-width:230px;overflow:hidden;text-overflow:ellipsis;padding-left:12px;text-align:left;border-right:1px solid var(--line)}
+table.heat td,table.heat th{min-width:46px}
+table.heat td:last-child,table.heat th:last-child{min-width:54px;border-left:1px solid var(--line)}
+table.heat td.l a.pl{border-bottom:1px dotted var(--mute)}
+@media (max-width:600px){table.heat td.l,table.heat th.l{min-width:130px;max-width:150px}}
