@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>неПокер: аналитика турниров</title>
+<link rel="stylesheet" href="style.css?v=9">
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="#overview"><span class="suit">♠</span> неПокер <small>аналитика турниров · 2026</small></a>
+    <nav id="nav">
+      <a href="#overview" data-t="overview">Обзор</a>
+      <a href="#tournaments" data-t="tournaments">Турниры</a>
+      <a href="#players" data-t="players">Игроки</a>
+      <a href="#metrics" data-t="metrics">Метрики</a>
+      <a href="#heat" data-t="heat">Карта</a>
+      <a href="#compare" data-t="compare">Сравнение</a>
+      <a href="#hunt" data-t="hunt">Охота</a>
+      <a href="#fun" data-t="fun">Номинации</a>
+      <a href="#report" data-t="report">Отчёт</a>
+      <a href="#data" data-t="data">О данных</a>
+    </nav>
+    <div class="gs"><input id="gs" type="search" placeholder="Найти игрока  ( / )" autocomplete="off" aria-label="Поиск игрока"><div class="gsr" id="gsr" hidden></div></div>
+  </div>
+</header>
+<main class="wrap" id="app" aria-live="polite"></main>
+<footer class="wrap foot">Данные: таблицы турниров 2026 и рейтинг клуба. Места в финалах восстановлены из очков рейтинга. Обновление: <code>python build_data.py</code></footer>
+<script src="data/data.js?v=9"></script>
+<script src="app.js?v=9"></script>
+</body>
+</html>
