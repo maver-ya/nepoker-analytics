@@ -183,3 +183,80 @@ table.heat td.l a.pl{border-bottom:1px dotted var(--mute)}
 .cmpsel{align-items:start}
 .cmpsel span{align-self:center}
 .cmpsel select{width:100%;min-width:0}
+
+/* ===== телефонная версия ===== */
+.fdet>summary{display:none}
+.fdet .fbar{margin-top:0}
+.hq{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;width:180px;max-width:100%}
+.noanim *{animation:none!important}
+@media (max-width:640px){
+  body{font-size:14.5px}
+  .wrap{padding:0 12px}
+  .top-in{gap:6px 8px;padding-top:6px;padding-bottom:6px;flex-wrap:wrap}
+  .brand{font-size:17px}.brand small{display:none}
+  .gs{flex:1 1 140px;min-width:120px;order:1}
+  .gs input{padding:5px 9px;font-size:13.5px}
+  nav{order:2;flex:1 1 100%;flex-wrap:nowrap;overflow-x:auto;gap:2px;margin:0 -12px;padding:0 12px 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  nav::-webkit-scrollbar{display:none}
+  nav a{white-space:nowrap;padding:6px 10px;font-size:13.5px}
+  main{padding-top:12px}
+  h1{font-size:21px;margin:2px 0 4px}
+  h2{font-size:17px;margin:20px 0 6px}
+  .sub{font-size:13.5px;margin-bottom:10px}
+  .card{padding:10px 12px;border-radius:10px}
+  .g4{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .g2{grid-template-columns:minmax(0,1fr)}
+  .kpi b{font-size:22px}
+  .kpi span{font-size:12px;line-height:1.3;display:block}
+  .chips{flex-wrap:nowrap;overflow-x:auto;margin:6px -12px 10px;padding:2px 12px 4px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{white-space:nowrap;flex:0 0 auto;padding:5px 11px}
+  .fdet{margin:0 0 12px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+  .fdet>summary{display:block;list-style:none;cursor:pointer;padding:9px 12px;font-size:13px;color:var(--ink)}
+  .fdet>summary::-webkit-details-marker{display:none}
+  .fdet>summary::after{content:"▾";float:right;color:var(--mute)}
+  .fdet[open]>summary::after{content:"▴"}
+  .fdet .fbar{padding:4px 12px 12px;margin:0}
+  .fbar{gap:8px 10px}
+  .fbar select{max-width:46vw}
+  table{font-size:13px}
+  th,td{padding:6px 6px}
+  .chart{padding:6px;overflow-x:visible}
+  .chart svg{min-width:0!important;width:100%}
+  .legend{font-size:11.5px}
+  .cap{font-size:13px}
+  .raceui{gap:8px}
+  .raceui input[type=range]{min-width:100px}
+  .cmpsel{gap:8px}
+  .cmpside{min-width:0;flex:1 1 100%}
+  .cmpsel span{display:none}
+  table.cmp td{font-size:13px;padding:6px 4px}
+  table.cmp td.mid{width:34%;font-size:11.5px}
+  .badge{font-size:12px;padding:2px 9px 2px 7px}
+  /* второстепенные колонки */
+  .ptab th:nth-child(4),.ptab td:nth-child(4),.ptab th:nth-child(5),.ptab td:nth-child(5),.ptab th:nth-child(7),.ptab td:nth-child(7),.ptab th:nth-child(8),.ptab td:nth-child(8){display:none}
+  .rtab th:nth-child(3),.rtab td:nth-child(3),.rtab th:last-child,.rtab td:last-child{display:none}
+  .htab th:nth-child(3),.htab td:nth-child(3),.htab th:nth-child(6),.htab td:nth-child(6),.htab th:nth-child(7),.htab td:nth-child(7),.htab th:nth-child(8),.htab td:nth-child(8){display:none}
+  .mt1 th:nth-child(5),.mt1 td:nth-child(5),.mt1 th:nth-child(6),.mt1 td:nth-child(6){display:none}
+  .ht th:nth-child(4),.ht td:nth-child(4),.ht th:nth-child(6),.ht td:nth-child(6){display:none}
+  .tall{max-height:70vh}
+  td.l,th.l{min-width:100px;max-width:140px}
+  table.heat td.l,table.heat th.l{min-width:104px;max-width:120px;padding-left:8px;font-size:12.5px}
+  table.heat td,table.heat th{min-width:38px;padding:5px 3px;font-size:12.5px}
+  .hq{width:100%}
+  .hqw{flex:1 1 100%}
+  .rank .n{font-size:18px;min-width:20px}
+}
+
+@media (max-width:640px){
+  .fbar>label:not(.tog){flex:1 1 calc(50% - 10px);min-width:0;flex-wrap:wrap;gap:4px}
+  .fbar>label:not(.tog) select{width:100%;max-width:none}
+  .fbar>.hqw{flex:1 1 100%}
+}
+
+@media (max-width:640px){
+  .mt1 td.l,.mt1 th.l{min-width:80px;max-width:110px;white-space:normal}
+  .mt1 th:nth-child(4),.mt1 td:nth-child(4){display:none}
+}
+
+@media (max-width:640px){ .tw table{min-width:0} table.heat{min-width:100%} }

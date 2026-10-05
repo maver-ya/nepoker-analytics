@@ -3,6 +3,8 @@
   'use strict';
   var D = window.NEPOKER, T = D.tournaments, P = D.players;
   var DN = D.display || {}, disp = function (n) { return DN[n] || n; };
+  var mq = window.matchMedia('(max-width: 640px)'), MOB = mq.matches;
+  var cut = function (s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
   var app = document.getElementById('app');
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); };
   var fmt = function (n) { return n == null ? '—' : Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); };
@@ -51,15 +53,17 @@
   }
   function filterBar() {
     var opts = function (sel) { return T.map(function (t, i) { return '<option value="' + i + '"' + (i === sel ? ' selected' : '') + '>' + esc((t.year ? t.year + ' · ' : '') + t.short) + '</option>'; }).join(''); };
-    return '<div class="fbar"><label>Период: с <select id="ff">' + opts(flt.from) + '</select> по <select id="ft">' + opts(flt.to) + '</select></label>' +
+    var lab = function (t) { return (t.year ? t.year + ' ' : '') + t.short; };
+    var sum = 'Фильтры: ' + lab(T[flt.from]) + ' — ' + lab(T[flt.to]) + (flt.incl ? ' · +нестандартные' : '');
+    return '<details class="fdet"' + (MOB ? '' : ' open') + '><summary>' + esc(sum) + '</summary><div class="fbar"><label>Период: с <select id="ff">' + opts(flt.from) + '</select> по <select id="ft">' + opts(flt.to) + '</select></label>' +
       '<label class="tog"><input type="checkbox" id="incl"' + (flt.incl ? ' checked' : '') + '> нестандартные форматы (' + T.filter(function (t) { return t.nonstandard; }).map(function (t) { return esc(t.short); }).join(', ') + ')</label>' +
-      '<span class="yrs"><button class="chip fy" data-y="2025">2025</button><button class="chip fy" data-y="2026">2026</button><button class="chip fy" data-y="all">Всё</button></span><button class="chip" id="freset">Сбросить</button><span class="note">турниров в выборке: ' + (TA ? TA.length : 0) + ' из ' + T.length + '</span></div>';
+      '<span class="yrs"><button class="chip fy" data-y="2025">2025</button><button class="chip fy" data-y="2026">2026</button><button class="chip fy" data-y="all">Всё</button></span><button class="chip" id="freset">Сбросить</button><span class="note">турниров в выборке: ' + (TA ? TA.length : 0) + ' из ' + T.length + '</span></div></details>';
   }
 
   /* ---------- SVG-графики ---------- */
   function dumbbell(t) {
     var rows = t.rows.filter(function (r) { return r.stack_rank != null; });
-    var N = t.finalists, rowH = 19, L = 175, W = 760, R = 24, H = rows.length * rowH + 52;
+    var N = t.finalists, rowH = MOB ? 21 : 19, L = MOB ? 112 : 175, W = MOB ? 400 : 760, R = MOB ? 16 : 24, H = rows.length * rowH + 52;
     var x = function (p) { return L + (p - 1) / (N - 1) * (W - L - R); };
     var s = '<svg id="race" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Стек и итоговое место">';
     for (var k = 1; k <= N; k += (N > 20 ? 3 : 2)) s += '<line x1="' + x(k) + '" x2="' + x(k) + '" y1="28" y2="' + (H - 10) + '" stroke="var(--line)"/><text class="mu" x="' + x(k) + '" y="20" text-anchor="middle" font-size="11">' + k + '</text>';
@@ -67,7 +71,7 @@
     var ft = rows.filter(function (r) { return r.place <= 9; }).length;
     rows.forEach(function (r, i) {
       var y = 38 + i * rowH, c = r.delta > 0 ? 'var(--good)' : (r.delta < 0 ? 'var(--bad)' : 'var(--mute)');
-      s += '<text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end" font-size="' + (disp(r.name).length > 20 ? 10.5 : 12) + '">' + esc(disp(r.name)) + '</text>';
+      s += '<text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end" font-size="' + (MOB ? 11.5 : (disp(r.name).length > 20 ? 10.5 : 12)) + '">' + esc(MOB ? cut(disp(r.name), 17) : disp(r.name)) + '</text>';
       s += '<line class="rl" data-a="' + x(r.stack_rank) + '" data-b="' + x(r.place) + '" x1="' + x(r.stack_rank) + '" x2="' + x(r.place) + '" y1="' + y + '" y2="' + y + '" stroke="' + c + '" stroke-width="3" stroke-linecap="round" opacity=".8"/>';
       s += '<circle cx="' + x(r.stack_rank) + '" cy="' + y + '" r="4" fill="var(--card)" stroke="var(--mute)" stroke-width="1.6"/>';
       s += '<circle class="rc" data-a="' + x(r.stack_rank) + '" data-b="' + x(r.place) + '" cx="' + x(r.place) + '" cy="' + y + '" r="5" fill="' + c + '"><title>' + esc(disp(r.name)) + ': стек №' + r.stack_rank + ' → место ' + r.place + '</title></circle>';
@@ -101,20 +105,20 @@
   }
   function hbars(items, opt) {            // items: [{label, v, color, txt}]
     opt = opt || {};
-    var rowH = 24, L = 185, W = 760, H = items.length * rowH + 10, mid, unit;
+    var rowH = 24, L = MOB ? 118 : 185, W = MOB ? 400 : 760, H = items.length * rowH + 10, mid, unit, pl = MOB ? 56 : 75, pr = MOB ? 64 : 75;
     if (opt.diverge) {
       var neg = Math.max.apply(null, items.map(function (i) { return i.v < 0 ? -i.v : 0; }).concat([0]));
       var pos = Math.max.apply(null, items.map(function (i) { return i.v > 0 ? i.v : 0; }).concat([0]));
-      unit = (W - L - 150) / Math.max(neg + pos, 1e-9); mid = L + 75 + neg * unit;
+      unit = (W - L - pl - pr) / Math.max(neg + pos, 1e-9); mid = L + pl + neg * unit;
     } else {
       var max = Math.max.apply(null, items.map(function (i) { return Math.abs(i.v); }).concat([1e-9]));
-      unit = (W - L - 130) / max; mid = L;
+      unit = (W - L - (MOB ? 88 : 130)) / max; mid = L;
     }
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
     if (opt.diverge) s += '<line x1="' + mid + '" x2="' + mid + '" y1="0" y2="' + H + '" stroke="var(--line)"/>';
     items.forEach(function (it, i) {
       var y = 6 + i * rowH, w = Math.abs(it.v) * unit, x0 = it.v < 0 ? mid - w : mid;
-      s += '<text x="' + (L - 8) + '" y="' + (y + 13) + '" text-anchor="end" font-size="' + (it.label.length > 22 ? 10.5 : 12) + '">' + esc(it.label) + '</text>';
+      s += '<text x="' + (L - 8) + '" y="' + (y + 13) + '" text-anchor="end" font-size="' + (MOB ? 11.5 : (it.label.length > 22 ? 10.5 : 12)) + '">' + esc(MOB ? cut(it.label, 18) : it.label) + '</text>';
       s += '<rect class="grow" style="transform-origin:' + (it.v < 0 ? 'right' : 'left') + ' center;animation-delay:' + (i * 40) + 'ms" x="' + x0 + '" y="' + y + '" width="' + Math.max(w, 2) + '" height="16" rx="3" fill="' + (it.color || (it.v < 0 ? 'var(--bad)' : 'var(--green)')) + '"/>';
       s += '<text class="mu" x="' + (it.v < 0 ? x0 - 5 : x0 + w + 5) + '" y="' + (y + 13) + '" text-anchor="' + (it.v < 0 ? 'end' : 'start') + '" font-size="12">' + (it.txt != null ? esc(it.txt) : f1(it.v)) + '</text>';
     });
@@ -160,7 +164,7 @@
   function kpi(v, l) { var long = String(v).length > 9; return '<div class="card kpi"><b' + (typeof v === 'number' ? ' data-count="' + v + '"' : '') + (long ? ' style="font-size:20px;line-height:1.3;padding:5px 0"' : '') + '>' + v + '</b><span>' + l + '</span></div>'; }
   function ins(cls, t, body) { return '<div class="card insight ' + cls + '"><h3>' + t + '</h3><p>' + body + '</p></div>'; }
   function scatter() {
-    var W = 700, H = 360, L = 52, B = 36, R = 14, Tp = 10;
+    var W = MOB ? 400 : 700, H = MOB ? 300 : 360, L = MOB ? 44 : 52, B = 36, R = 14, Tp = 10;
     var maxS = Math.max.apply(null, ES.map(function (e) { return e.share; }));
     var x = function (s) { return L + s / maxS * (W - L - R); }, y = function (p) { return Tp + p * (H - Tp - B); };
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Доля стека и итоговое место">';
@@ -186,7 +190,7 @@
         kpi(t.corr == null ? '—' : f1(t.corr), 'корреляция ранга стека и места') + kpi(f1(t.top3_stack_avg_place), 'среднее место трёх крупнейших стеков') + '</div>';
       h += '<h2>Стек → итог</h2><p class="note">Светлый круг — место по стеку, цветной — итоговое место; двигайте ползунок или нажмите «Повторить». Зелёный: обыграл свой стек, красный: не оправдал.</p><div class="raceui"><button class="chip" id="rplay">▶ Повторить</button><input type="range" id="rr" min="0" max="100" value="100" aria-label="Ход финала"><span id="rlab" class="note"></span></div><div class="chart">' + dumbbell(t) + '</div>' + capDumb(t);
     }
-    h += '<h2>Результаты финала</h2><div class="tw"><table><thead><tr><th>Место</th><th class="l">Игрок</th><th>Дней</th>' + (t.stack_available ? '<th>Стек финала</th><th>Ранг стека</th><th>Δ мест</th>' : '') + '<th>Очки рейтинга</th></tr></thead><tbody>';
+    h += '<h2>Результаты финала</h2><div class="tw"><table class="rtab"><thead><tr><th>Место</th><th class="l">Игрок</th><th>Дней</th>' + (t.stack_available ? '<th>Стек финала</th><th>Ранг стека</th><th>Δ мест</th>' : '') + '<th>Очки рейтинга</th></tr></thead><tbody>';
     t.rows.forEach(function (r) {
       h += '<tr class="' + (r.place <= 3 ? 'p' + r.place : '') + (r.place === 9 ? ' ft' : '') + '"><td>' + r.place + '</td><td class="l">' + link(r.name) + '</td><td>' + (r.visits == null ? '—' : r.visits) + '</td>';
       if (t.stack_available) {
@@ -227,7 +231,7 @@
     var cols = [['name', 'Игрок', 'l'], ['finals', 'Финалов'], ['wins', 'Побед'], ['podiums', 'Топ-3'], ['table', 'Фин.стол'], ['avg_place', 'Ср. место'], ['avg_delta', 'Ср. Δ мест'], ['sd_place', 'Разброс']];
     var rows = Object.keys(P).map(function (k) { return P[k]; }).filter(function (p) { return (p.name + ' ' + disp(p.name)).toLowerCase().indexOf(q.toLowerCase()) >= 0; });
     rows.sort(function (a, b) { var x = a[sortKey], y = b[sortKey]; if (x == null) return 1; if (y == null) return -1; return typeof x === 'string' ? sortDir * x.localeCompare(y) : sortDir * (x - y); });
-    var h = '<div class="tw tall"><table><thead><tr>' + cols.map(function (c) { return '<th class="s ' + (c[2] || '') + '" data-k="' + c[0] + '">' + c[1] + (sortKey === c[0] ? (sortDir > 0 ? ' ▲' : ' ▼') : '') + '</th>'; }).join('') + '</tr></thead><tbody>';
+    var h = '<div class="tw tall"><table class="ptab"><thead><tr>' + cols.map(function (c) { return '<th class="s ' + (c[2] || '') + '" data-k="' + c[0] + '">' + c[1] + (sortKey === c[0] ? (sortDir > 0 ? ' ▲' : ' ▼') : '') + '</th>'; }).join('') + '</tr></thead><tbody>';
     rows.forEach(function (p) {
       h += '<tr><td class="l">' + link(p.name) + '</td><td>' + p.finals + '</td><td>' + p.wins + '</td><td>' + p.podiums + '</td><td>' + p.table + '</td><td>' + f1(p.avg_place) + '</td><td class="' + (p.avg_delta > 0 ? 'pos' : (p.avg_delta < 0 ? 'neg' : '')) + '">' + (p.avg_delta == null ? '—' : f1(p.avg_delta)) + '</td><td>' + f1(p.sd_place) + '</td></tr>';
     });
@@ -248,12 +252,12 @@
   }
   function ratingChart(p) {
     var s = p.series; if (!s || s.length < 2) return '<p class="note">Недостаточно данных рейтинга.</p>';
-    var W = 760, H = 270, L = 48, R = 18, Tp = 16, B = 34, ev = D.events;
+    var W = MOB ? 400 : 760, H = MOB ? 240 : 270, L = MOB ? 38 : 48, R = 14, Tp = 16, B = 34, ev = D.events;
     var maxE = 52, maxR = Math.max.apply(null, s.map(function (z) { return z.rating; })) * 1.08;
     var x = function (e) { return L + (e - 1) / (maxE - 1) * (W - L - R); }, y = function (v) { return Tp + (1 - v / maxR) * (H - Tp - B); };
     var out = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Рейтинг по событиям">';
     for (var g = 0; g <= 4; g++) { var v = maxR * g / 4; out += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--line)"/><text class="mu" x="' + (L - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end" font-size="11">' + Math.round(v / 10) * 10 + '</text>'; }
-    Object.keys(ev).forEach(function (k) { if (ev[k].kind === 'final') out += '<line x1="' + x(+k) + '" x2="' + x(+k) + '" y1="' + Tp + '" y2="' + (H - B) + '" stroke="var(--gold)" stroke-dasharray="2 4" opacity=".6"/><text class="mu" x="' + x(+k) + '" y="' + (H - 18) + '" text-anchor="middle" font-size="10">' + esc(ev[k].label.replace(' · финал', '')) + '</text>'; });
+    Object.keys(ev).forEach(function (k) { if (ev[k].kind === 'final') out += '<line x1="' + x(+k) + '" x2="' + x(+k) + '" y1="' + Tp + '" y2="' + (H - B) + '" stroke="var(--gold)" stroke-dasharray="2 4" opacity=".6"/><text class="mu" x="' + x(+k) + '" y="' + (H - 18) + '" text-anchor="middle" font-size="10">' + (MOB ? '' : esc(ev[k].label.replace(' · финал', ''))) + '</text>'; });
     var pts = s.map(function (z) { return x(z.e) + ',' + y(z.rating); });
     var area = 'M' + x(s[0].e) + ',' + y(0) + ' L' + pts.join(' L') + ' L' + x(s[s.length - 1].e) + ',' + y(0) + ' Z';
     out += '<path d="' + area + '" fill="var(--green)" opacity=".12"/><polyline class="draw" pathLength="1" points="' + pts.join(' ') + '" fill="none" stroke="var(--green)" stroke-width="2.4" stroke-linejoin="round"/>';
@@ -281,7 +285,7 @@
     h += '<div class="grid g4" style="margin-top:12px">' + kpi(p.wins, 'побед') + kpi(p.podiums, 'призовых мест') + kpi(p.table, 'финальных столов') + kpi(p.avg_delta == null ? '—' : f1(p.avg_delta), 'ср. Δ мест (стек → итог)') +
       (p.rating_now != null ? kpi(p.rating_now, 'рейтинг (#' + (p.rating_rank || '—') + ')') : '') + '</div>';
     h += '<h2>Рейтинг по событиям</h2><p class="note">Рейтинг — сумма ' + D.rating_top + ' лучших результатов. Золотые точки — финалы турниров; наведите курсор на точку.</p><div class="chart">' + ratingChart(p) + '</div>' + capRating(p);
-    h += '<h2>История финалов</h2><div class="tw"><table><thead><tr><th class="l">Турнир</th><th>Место</th><th>из</th><th>Ранг стека</th><th>Δ мест</th><th>Стек</th><th>Дней</th><th>Дневная форма</th></tr></thead><tbody>';
+    h += '<h2>История финалов</h2><div class="tw"><table class="htab"><thead><tr><th class="l">Турнир</th><th>Место</th><th>из</th><th>Ранг стека</th><th>Δ мест</th><th>Стек</th><th>Дней</th><th>Дневная форма</th></tr></thead><tbody>';
     p.list.forEach(function (l) {
       var t = T.filter(function (x) { return x.id === l.t; })[0], row = t && t.rows.filter(function (r) { return r.name === name; })[0];
       var form = row ? row.days.map(function (d, i) { return d.place == null ? '<span class="dchip off">—</span>' : '<span class="dchip" title="день ' + (i + 1) + ': ' + d.place + ' из ' + t.days[i].players + '">' + d.place + '</span>'; }).join('') : '';
@@ -390,12 +394,12 @@
     return '<tr><td class="' + ca + '">' + (f ? f(a) : (a == null ? '—' : a)) + '</td><td class="mid">' + label + '</td><td class="' + cb + '">' + (f ? f(b) : (b == null ? '—' : b)) + '</td></tr>';
   }
   function ratingMulti(list) {
-    var W = 760, H = 280, L = 48, R = 18, Tp = 16, B = 34, ev = D.events, maxE = 52;
+    var W = MOB ? 400 : 760, H = MOB ? 240 : 280, L = MOB ? 38 : 48, R = 14, Tp = 16, B = 34, ev = D.events, maxE = 52;
     var maxR = Math.max.apply(null, list.map(function (z) { return Math.max.apply(null, (z.p.series || [{ rating: 1 }]).map(function (q) { return q.rating; })); })) * 1.08;
     var x = function (e) { return L + (e - 1) / (maxE - 1) * (W - L - R); }, y = function (v) { return Tp + (1 - v / maxR) * (H - Tp - B); };
     var out = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Рейтинг двух игроков">';
     for (var g = 0; g <= 4; g++) { var v = maxR * g / 4; out += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--line)"/><text class="mu" x="' + (L - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end" font-size="11">' + Math.round(v / 10) * 10 + '</text>'; }
-    Object.keys(ev).forEach(function (k) { if (ev[k].kind === 'final') out += '<line x1="' + x(+k) + '" x2="' + x(+k) + '" y1="' + Tp + '" y2="' + (H - B) + '" stroke="var(--gold)" stroke-dasharray="2 4" opacity=".5"/><text class="mu" x="' + x(+k) + '" y="' + (H - 18) + '" text-anchor="middle" font-size="10">' + esc(ev[k].label.replace(' · финал', '')) + '</text>'; });
+    Object.keys(ev).forEach(function (k) { if (ev[k].kind === 'final') out += '<line x1="' + x(+k) + '" x2="' + x(+k) + '" y1="' + Tp + '" y2="' + (H - B) + '" stroke="var(--gold)" stroke-dasharray="2 4" opacity=".5"/><text class="mu" x="' + x(+k) + '" y="' + (H - 18) + '" text-anchor="middle" font-size="10">' + (MOB ? '' : esc(ev[k].label.replace(' · финал', ''))) + '</text>'; });
     list.forEach(function (z) {
       var s = z.p.series; if (!s || s.length < 2) return;
       out += '<polyline class="draw" pathLength="1" points="' + s.map(function (q) { return x(q.e) + ',' + y(q.rating); }).join(' ') + '" fill="none" stroke="' + z.color + '" stroke-width="2.6" stroke-linejoin="round"/>';
@@ -460,11 +464,12 @@
   }
 
   /* ---------- тепловая карта «игрок × турнир» ---------- */
-  var heat = { hmetric: 'place', hsort: 'finals', hmin: '2' };
+  var heat = { hmetric: 'place', hsort: 'finals', hmin: '2', hq: '' };
   function pHeat() {
     var minF = +heat.hmin, cell = {};
     E.forEach(function (e) { cell[e.name + '|' + e.t.id] = e; });
-    var rows = Object.keys(P).map(function (k) { return P[k]; }).filter(function (p) { return p.finals >= minF; });
+    var hq = (heat.hq || '').trim().toLowerCase();
+    var rows = Object.keys(P).map(function (k) { return P[k]; }).filter(function (p) { return (hq ? true : p.finals >= minF) && (!hq || (p.name + ' ' + disp(p.name)).toLowerCase().indexOf(hq) >= 0); });
     var key = heat.hsort;
     rows.sort(function (x, y) {
       if (key === 'avg') return x.avg_place - y.avg_place;
@@ -474,7 +479,7 @@
     });
     var sel = function (id, cur, o) { return '<select id="' + id + '">' + o.map(function (v) { return '<option value="' + v[0] + '"' + (String(cur) === String(v[0]) ? ' selected' : '') + '>' + v[1] + '</option>'; }).join('') + '</select>'; };
     var h = '<h1>Карта «игрок × турнир»</h1><p class="sub">Каждая клетка — один финал. Читайте по строке: стабильность игрока; по столбцу: кто «вытянул» турнир.</p>' + filterBar();
-    h += '<div class="fbar"><label>Показывать ' + sel('hmetric', heat.hmetric, [['place', 'итоговое место'], ['delta', 'Δ мест (стек → итог)']]) + '</label><label>Сортировка ' + sel('hsort', heat.hsort, [['finals', 'по числу финалов'], ['avg', 'по среднему месту'], ['delta', 'по среднему Δ'], ['name', 'по имени']]) + '</label><label>Минимум финалов ' + sel('hmin', heat.hmin, [[1, '1'], [2, '2'], [3, '3'], [4, '4'], [5, '5']]) + '</label></div>';
+    h += '<div class="fbar"><label>Показывать ' + sel('hmetric', heat.hmetric, [['place', 'итоговое место'], ['delta', 'Δ мест (стек → итог)']]) + '</label><label>Сортировка ' + sel('hsort', heat.hsort, [['finals', 'по числу финалов'], ['avg', 'по среднему месту'], ['delta', 'по среднему Δ'], ['name', 'по имени']]) + '</label><label>Минимум финалов ' + sel('hmin', heat.hmin, [[1, '1'], [2, '2'], [3, '3'], [4, '4'], [5, '5']]) + '</label><label class="hqw">Игрок <input id="hq" type="search" class="hq" placeholder="Найти игрока…" autocomplete="off" value="' + esc(heat.hq || '') + '"></label></div>';
     h += '<div class="tw tall"><table class="heat"><thead><tr><th class="l">Игрок</th>' + TA.map(function (t) { return '<th><a class="pl" href="#tournaments/' + t.id + '" title="' + esc(t.title) + '">' + esc(t.short) + '</a><br><span class="note">' + (t.year || '') + '</span></th>'; }).join('') + '<th>Ср.</th></tr></thead><tbody>';
     rows.forEach(function (p) {
       h += '<tr><td class="l">' + link(p.name) + '</td>' + TA.map(function (t) {
@@ -497,7 +502,7 @@
 
   function pMetrics() {
     var h = '<h1>Метрики</h1><p class="sub">Базовые показатели из концепта: как реализуется стек, проклятие чиплидера, камбеки. Считаются по турнирам, где известны финальные стеки (' + stackTs.length + ' из ' + T.length + ').</p>' + filterBar();
-    h += '<h2>1. Проклятие чиплидера</h2><div class="tw"><table><thead><tr><th class="l">Турнир</th><th class="l">Чиплидер по стеку</th><th>Его место</th><th class="l">Победитель</th><th>Ранг стека победителя</th><th>Ср. место топ-3 стеков</th></tr></thead><tbody>';
+    h += '<h2>1. Проклятие чиплидера</h2><div class="tw"><table class="mt1"><thead><tr><th class="l">Турнир</th><th class="l">Чиплидер по стеку</th><th>Его место</th><th class="l">Победитель</th><th>Ранг стека победителя</th><th>Ср. место топ-3 стеков</th></tr></thead><tbody>';
     stackTs.forEach(function (t) { h += '<tr><td class="l"><a class="pl" href="#tournaments/' + t.id + '">' + esc(t.short) + '</a></td><td class="l">' + link(t.chip_leader.name) + '</td><td class="' + (t.chip_leader.place === 1 ? 'pos' : '') + '">' + t.chip_leader.place + '</td><td class="l">' + link(t.winner.name) + '</td><td>' + t.winner.stack_rank + '</td><td>' + f1(t.top3_stack_avg_place) + '</td></tr>'; });
     h += '</tbody></table></div>';
     h += '<h2>2. Конвертация стеков</h2><p class="note">Игроки разбиты на четверти по рангу стека внутри своего турнира.</p><div class="tw"><table><thead><tr><th class="l">Четверть по стеку</th><th>Выступлений</th><th>Ср. итоговое место, % поля</th><th>Дошли до финального стола</th><th>В топ-3</th></tr></thead><tbody>';
@@ -595,7 +600,7 @@
     h += '<div class="grid g4">' + kpi(hu.total_ko, 'нокаутов за турнир') + kpi(fmt(Math.round(hu.total_sum / hu.total_ko)), 'средняя цена нокаута') + kpi(esc(disp(hu.hunters[0].name)), 'охотник №1: ' + hu.hunters[0].count + ' нокаутов') + kpi(fmt(best.best), 'самый дорогой нокаут — ' + esc(disp(best.name))) + '</div>';
     h += '<h2>Лучшие охотники</h2><div class="chart">' + hbars(hs.slice(0, 10).map(function (x) { return { label: disp(x.name), v: x.count, txt: x.count + ' · ср. ' + x.avg, color: x.finalist ? 'var(--green)' : 'var(--mute)' }; })) + '</div>';
     h += cap('Охотник №1 — ' + esc(disp(hu.hunters[0].name)) + ': ' + hu.hunters[0].count + ' нокаутов на ' + fmt(hu.hunters[0].sum) + ' фишек. Выше всех средняя цена нокаута (от 3 выбитых) — ' + esc(disp(hu.hunters.filter(function (x) { return x.count >= 3; }).sort(function (x, y) { return y.avg - x.avg; })[0].name)) + '.');
-    h += '<h2>Все охотники</h2><div class="tw tall"><table><thead><tr><th>№</th><th class="l">Игрок</th><th>Нокаутов</th><th>Сумма</th><th>Ср. цена</th><th>Лучший</th><th>Место в финале</th></tr></thead><tbody>' +
+    h += '<h2>Все охотники</h2><div class="tw tall"><table class="ht"><thead><tr><th>№</th><th class="l">Игрок</th><th>Нокаутов</th><th>Сумма</th><th>Ср. цена</th><th>Лучший</th><th>Место в финале</th></tr></thead><tbody>' +
       hs.map(function (x, i) { return '<tr><td>' + (i + 1) + '</td><td class="l">' + link(x.name) + '</td><td>' + x.count + '</td><td>' + fmt(x.sum) + '</td><td>' + x.avg + '</td><td>' + fmt(x.best) + '</td><td>' + (place[x.name] || '—') + '</td></tr>'; }).join('') + '</tbody></table></div>';
     var bn = hu.bounty.filter(function (x) { return huntAll || x.finalist; }).slice(0, 8);
     h += '<h2>Самые дорогие головы</h2><p class="note">Максимальная цена за голову игрока в ходе турнира.</p><div class="chart">' + hbars(bn.map(function (x) { return { label: disp(x.name), v: x.price, txt: fmt(x.price), color: x.finalist ? 'var(--gold)' : 'var(--mute)' }; })) + '</div>';
@@ -655,6 +660,7 @@
       document.querySelectorAll('#nav a').forEach(function (x) { x.classList.toggle('on', x.dataset.t === tab); });
       return;
     }
+    app.classList.toggle('noanim', keep === true);
     app.innerHTML = (pages[tab] || pOverview)();
     document.querySelectorAll('#nav a').forEach(function (a) { a.classList.toggle('on', a.dataset.t === tab); });
     if (tab === 'players' && !arg) { renderPT(); var qi = document.getElementById('q'); qi.addEventListener('input', function () { q = qi.value; renderPT(); }); }
@@ -664,6 +670,11 @@
     countUp();
     if (keep !== true) window.scrollTo(0, 0);
   }
+  document.addEventListener('input', function (ev) {
+    if (ev.target.id !== 'hq') return;
+    heat.hq = ev.target.value; var pos = ev.target.selectionStart; route(true);
+    var el = document.getElementById('hq'); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (e) {} }
+  });
   document.addEventListener('change', function (ev) {
     var id = ev.target.id;
     if (id === 'incl') flt.incl = ev.target.checked;
@@ -686,7 +697,9 @@
     var c = ev.target.closest('.chip:not(.rpt):not(.hnt)'); if (c && c.dataset.id) location.hash = '#tournaments/' + c.dataset.id;
     var th = ev.target.closest('th.s'); if (th) { var k = th.dataset.k; if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === 'name' ? 1 : -1; } renderPT(); }
   });
-  window.addEventListener('hashchange', route);
+  window.addEventListener('hashchange', function () { route(); });
+  var onMq = function () { MOB = mq.matches; route(true); };
+  if (mq.addEventListener) mq.addEventListener('change', onMq); else if (mq.addListener) mq.addListener(onMq);
   setupSearch();
   route();
 })();
