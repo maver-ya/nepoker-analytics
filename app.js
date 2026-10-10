@@ -253,7 +253,7 @@
   function ratingChart(p) {
     var s = p.series; if (!s || s.length < 2) return '<p class="note">Недостаточно данных рейтинга.</p>';
     var W = MOB ? 400 : 760, H = MOB ? 240 : 270, L = MOB ? 38 : 48, R = 14, Tp = 16, B = 34, ev = D.events;
-    var maxE = 52, maxR = Math.max.apply(null, s.map(function (z) { return z.rating; })) * 1.08;
+    var maxE = Math.max.apply(null, Object.keys(ev).map(Number)), maxR = Math.max.apply(null, s.map(function (z) { return z.rating; })) * 1.08;
     var x = function (e) { return L + (e - 1) / (maxE - 1) * (W - L - R); }, y = function (v) { return Tp + (1 - v / maxR) * (H - Tp - B); };
     var out = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Рейтинг по событиям">';
     for (var g = 0; g <= 4; g++) { var v = maxR * g / 4; out += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--line)"/><text class="mu" x="' + (L - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end" font-size="11">' + Math.round(v / 10) * 10 + '</text>'; }
@@ -394,7 +394,7 @@
     return '<tr><td class="' + ca + '">' + (f ? f(a) : (a == null ? '—' : a)) + '</td><td class="mid">' + label + '</td><td class="' + cb + '">' + (f ? f(b) : (b == null ? '—' : b)) + '</td></tr>';
   }
   function ratingMulti(list) {
-    var W = MOB ? 400 : 760, H = MOB ? 240 : 280, L = MOB ? 38 : 48, R = 14, Tp = 16, B = 34, ev = D.events, maxE = 52;
+    var W = MOB ? 400 : 760, H = MOB ? 240 : 280, L = MOB ? 38 : 48, R = 14, Tp = 16, B = 34, ev = D.events, maxE = Math.max.apply(null, Object.keys(D.events).map(Number));
     var maxR = Math.max.apply(null, list.map(function (z) { return Math.max.apply(null, (z.p.series || [{ rating: 1 }]).map(function (q) { return q.rating; })); })) * 1.08;
     var x = function (e) { return L + (e - 1) / (maxE - 1) * (W - L - R); }, y = function (v) { return Tp + (1 - v / maxR) * (H - Tp - B); };
     var out = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Рейтинг двух игроков">';
@@ -500,6 +500,41 @@
     return h;
   }
 
+  /* ---------- межсезонка ---------- */
+  var IT = D.interseason || { series: [], alltime: [] };
+  function pInter(id) {
+    var S = IT.series; if (!S.length) return '<h1>Межсезонка</h1><p class="note">Нет данных.</p>';
+    var s = S.filter(function (x) { return x.id === id; })[0] || S[S.length - 1];
+    var rev = S.slice().reverse();
+    var h = '<h1>Межсезонка</h1><p class="sub">Тренировочные игры без вылета: у каждого день «вход + добор → выход», считаем выигрыш в фишках. Чиплидер серии получает приз и место в Сателлите.</p>';
+    h += '<div class="chips">' + rev.map(function (x) { return '<button class="chip itr' + (x.id === s.id ? ' on' : '') + '" data-id="' + x.id + '">' + esc(x.title.replace('Межсезонка, ', '')) + (x.status === 'идёт' ? ' ●' : '') + '</button>'; }).join('') + '</div>';
+    var st = s.standings, lead = st[0], bestDay = null;
+    s.days.forEach(function (d) { d.players.forEach(function (p) { if (!bestDay || p.win > bestDay.win) bestDay = { name: p.name, win: p.win, n: d.n }; }); });
+    h += '<h2 style="margin-top:6px">' + esc(s.title) + ' <span class="tag">' + esc(s.status) + '</span></h2>';
+    h += '<div class="grid g4" style="margin:8px 0">' + kpi(s.players_total, 'участников') + kpi(s.days.length + (s.planned_days ? ' из ' + s.planned_days : ''), 'игровых дней') + kpi(esc(disp(lead.name)), 'чиплидер: ' + (lead.win > 0 ? '+' : '') + fmt(lead.win)) + kpi(esc(disp(bestDay.name)), 'лучший день: +' + fmt(bestDay.win) + ' (день ' + bestDay.n + ')') + '</div>';
+    var nd = s.days.length;
+    h += '<h2>Общий зачёт</h2><div class="tw tall"><table class="istab"><thead><tr><th>№</th><th class="l">Игрок</th><th>Дней</th><th>Сумма</th>' + s.days.map(function (d) { return '<th class="dcol">Д' + d.n + '</th>'; }).join('') + '</tr></thead><tbody>';
+    st.forEach(function (t, i) {
+      h += '<tr class="' + (i < 3 ? 'p' + (i + 1) : '') + '"><td>' + (i + 1) + '</td><td class="l">' + link(t.name) + '</td><td>' + t.days + '</td><td class="' + (t.win > 0 ? 'pos' : (t.win < 0 ? 'neg' : '')) + '"><b>' + (t.win > 0 ? '+' : '') + fmt(t.win) + '</b></td>' +
+        s.days.map(function (d) { var v = t.per_day[d.n]; return '<td class="dcol ' + (v > 0 ? 'pos' : (v < 0 ? 'neg' : '')) + '">' + (v == null ? '·' : (v > 0 ? '+' : '') + fmt(v)) + '</td>'; }).join('') + '</tr>';
+    });
+    h += '</tbody></table></div>';
+    var plus = st.filter(function (t) { return t.win > 0; }).length;
+    h += cap('В плюсе по итогам серии ' + plus + ' из ' + st.length + ' игроков. Выигрыш = выход − вход − добор, поэтому сумма по всем игрокам примерно нулевая.');
+    var DAYN = s.days.length > 0 ? s.days[s.days.length - 1] : null;
+    if (DAYN) {
+      h += '<h2>Результаты дня ' + DAYN.n + (DAYN.date ? ' — ' + esc(DAYN.date) : '') + '</h2><div class="tw tall"><table class="itday"><thead><tr><th>№</th><th class="l">Игрок</th><th>Выигрыш</th><th>Добор</th><th>Выход</th></tr></thead><tbody>' +
+        DAYN.players.slice().sort(function (x, y) { return y.win - x.win; }).map(function (p, i) { return '<tr><td>' + (i + 1) + '</td><td class="l">' + link(p.name) + '</td><td class="' + (p.win > 0 ? 'pos' : (p.win < 0 ? 'neg' : '')) + '">' + (p.win > 0 ? '+' : '') + fmt(p.win) + '</td><td>' + (p.extra ? fmt(p.extra) : '—') + '</td><td>' + fmt(p.exit) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+    }
+    if (s.hunting && s.hunting.length) {
+      h += '<h2>Охота за головами</h2><p class="note">Цена за голову игрока в текущей серии (по данным сайта результатов).</p><div class="chart">' + hbars(s.hunting.slice(0, 12).map(function (x) { return { label: disp(x.name), v: x.value, txt: fmt(x.value), color: 'var(--gold)' }; })) + '</div>';
+    }
+    var all = IT.alltime.slice(0, 20);
+    h += '<h2>Все межсезонки: лучшие игроки</h2><p class="note">Сумма выигрыша за все серии 2023–2026 (по данным клубной таблицы и сайта).</p><div class="tw tall"><table class="iatab"><thead><tr><th>№</th><th class="l">Игрок</th><th>Серий</th><th>Дней</th><th>Сумма</th><th>Побед в серии</th><th>% плюсовых дней</th></tr></thead><tbody>' +
+      all.map(function (t, i) { return '<tr><td>' + (i + 1) + '</td><td class="l">' + link(t.name) + '</td><td>' + t.series + '</td><td>' + t.days + '</td><td class="' + (t.win > 0 ? 'pos' : 'neg') + '"><b>' + (t.win > 0 ? '+' : '') + fmt(t.win) + '</b></td><td>' + t.series_wins + '</td><td>' + Math.round(t.pos_days / t.days * 100) + '%</td></tr>'; }).join('') + '</tbody></table></div>';
+    return h;
+  }
+
   function pMetrics() {
     var h = '<h1>Метрики</h1><p class="sub">Базовые показатели из концепта: как реализуется стек, проклятие чиплидера, камбеки. Считаются по турнирам, где известны финальные стеки (' + stackTs.length + ' из ' + T.length + ').</p>' + filterBar();
     h += '<h2>1. Проклятие чиплидера</h2><div class="tw"><table class="mt1"><thead><tr><th class="l">Турнир</th><th class="l">Чиплидер по стеку</th><th>Его место</th><th class="l">Победитель</th><th>Ранг стека победителя</th><th>Ср. место топ-3 стеков</th></tr></thead><tbody>';
@@ -570,7 +605,7 @@
   function capCompare(a, b, pa, pb) {
     var A = {}, B = {}; (pa.series || []).forEach(function (z) { A[z.e] = z.rating; }); (pb.series || []).forEach(function (z) { B[z.e] = z.rating; });
     var ra = 0, rb = 0, lead = null, since = null;
-    for (var e = 1; e <= 52; e++) { if (A[e] != null) ra = A[e]; if (B[e] != null) rb = B[e]; var l = ra === rb ? lead : (ra > rb ? 'a' : 'b'); if (l !== lead) { lead = l; since = e; } }
+    for (var e = 1; e <= 99; e++) { if (A[e] != null) ra = A[e]; if (B[e] != null) rb = B[e]; var l = ra === rb ? lead : (ra > rb ? 'a' : 'b'); if (l !== lead) { lead = l; since = e; } }
     if (!lead) return '';
     var ev = D.events[since] || { label: 'событие ' + since };
     return cap('Сейчас впереди ' + esc(disp(lead === 'a' ? a : b)) + ' (разница ' + Math.abs(ra - rb) + '), лидирует с события «' + esc(ev.label) + '».');
@@ -662,7 +697,7 @@
   }
   function route(keep) {
     var parts = location.hash.replace(/^#/, '').split('/'), tab = parts[0] || 'overview', arg = parts[1] ? decodeURIComponent(parts[1]) : null;
-    var pages = { overview: pOverview, tournaments: function () { return pTournaments(arg); }, players: function () { return pPlayers(arg); }, metrics: pMetrics, fun: pFun, heat: pHeat, hunt: function () { return pHunt(arg); }, compare: function () { return pCompare(parts[1] ? decodeURIComponent(parts[1]) : null, parts[2] ? decodeURIComponent(parts[2]) : null); }, report: function () { return pReport(arg); }, data: pData };
+    var pages = { overview: pOverview, tournaments: function () { return pTournaments(arg); }, players: function () { return pPlayers(arg); }, metrics: pMetrics, fun: pFun, heat: pHeat, inter: function () { return pInter(arg); }, hunt: function () { return pHunt(arg); }, compare: function () { return pCompare(parts[1] ? decodeURIComponent(parts[1]) : null, parts[2] ? decodeURIComponent(parts[2]) : null); }, report: function () { return pReport(arg); }, data: pData };
     var needsData = { overview: 1, metrics: 1, fun: 1 }, needsT = { overview: 1, metrics: 1, fun: 1, heat: 1 };
     if ((needsT[tab] || (tab === 'players' && !arg)) && (!TA.length || (needsData[tab] && !ES.length))) {
       app.innerHTML = '<h1>Нет данных</h1>' + filterBar() + '<p class="note">В выбранном периоде нет турниров' + (TA.length ? ' с известными стеками' : '') + '. Расширьте период или включите нестандартные форматы.</p>';
@@ -697,13 +732,14 @@
     saveFilter(); applyFilter(); route(true);
   });
   document.addEventListener('click', function (ev) {
+    var itr = ev.target.closest('.chip.itr'); if (itr) { location.hash = '#inter/' + itr.dataset.id; return; }
     var hn = ev.target.closest('.chip.hnt'); if (hn) { location.hash = '#hunt/' + hn.dataset.id; return; }
     var rp = ev.target.closest('.chip.rpt'); if (rp) location.hash = '#report/' + rp.dataset.id;
     var dl = ev.target.closest('.dl'); if (dl) { var cv = document.getElementById(dl.dataset.cv); cv.toBlob(function (b) { var u = URL.createObjectURL(b), l = document.createElement('a'); l.href = u; l.download = 'nepoker-' + pReport.cur.t.id + '-' + dl.dataset.name + '.png'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 1000); }); }
     var cp = ev.target.closest('#repcopy'); if (cp) { var tx = document.getElementById('reptext').textContent, msg = document.getElementById('repmsg'); (navigator.clipboard ? navigator.clipboard.writeText(tx) : Promise.reject()).then(function () { msg.textContent = 'Скопировано'; }, function () { var r = document.createRange(); r.selectNodeContents(document.getElementById('reptext')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); msg.textContent = 'Текст выделен — нажмите Ctrl+C'; }); }
     var fy = ev.target.closest('.chip.fy'); if (fy) { var yy = fy.dataset.y; if (yy === 'all') { flt.from = 0; flt.to = T.length - 1; } else { var ix = []; T.forEach(function (t, i) { if (String(t.year) === yy) ix.push(i); }); if (ix.length) { flt.from = ix[0]; flt.to = ix[ix.length - 1]; } } saveFilter(); applyFilter(); route(true); return; }
     if (ev.target.id === 'freset') { flt = { from: 0, to: T.length - 1, incl: false }; saveFilter(); applyFilter(); route(true); return; }
-    var c = ev.target.closest('.chip:not(.rpt):not(.hnt)'); if (c && c.dataset.id) location.hash = '#tournaments/' + c.dataset.id;
+    var c = ev.target.closest('.chip:not(.rpt):not(.hnt):not(.itr)'); if (c && c.dataset.id) location.hash = '#tournaments/' + c.dataset.id;
     var th = ev.target.closest('th.s'); if (th) { var k = th.dataset.k; if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === 'name' ? 1 : -1; } renderPT(); }
   });
   window.addEventListener('hashchange', function () { route(); });

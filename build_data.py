@@ -280,6 +280,111 @@ def build_2025(notes, keep=None):
     return out
 
 
+# ---------- межсезонки (тренировочные игры без вылета): Excel-архив + текущая серия с сайта ----------
+MONTHS = ['', 'январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
+
+
+def _norm_name(n):
+    n = str(n).strip()
+    return ALIAS25.get(n, ALIASES.get(n, n))
+
+
+def _series_title(dates):
+    a, z = dates[0], dates[-1]
+    if (a.year, a.month) == (z.year, z.month):
+        return f'Межсезонка, {MONTHS[a.month]} {a.year}'
+    return f'Межсезонка, {MONTHS[a.month]}–{MONTHS[z.month]} {z.year}'
+
+
+def parse_interseasons():
+    wb = openpyxl.load_workbook(HIST, data_only=True)
+    series = []
+    for sh in ('Архив', 'Межсезонка'):
+        ws = wb[sh]
+        starts = [r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == 'Дата:']
+        for si, r in enumerate(starts):
+            end = starts[si + 1] - 3 if si + 1 < len(starts) else ws.max_row
+            dates, c = [], 3
+            while hasattr(ws.cell(r, c).value, 'year'):
+                dates.append((c, ws.cell(r, c).value)); c += 4
+            if len(dates) < 2: continue
+            days = [dict(n=i + 1, date=dt.strftime('%d.%m.%Y'), players=[]) for i, (_, dt) in enumerate(dates)]
+            rr = r + 2
+            while rr <= end and ws.cell(rr, 2).value and str(ws.cell(rr, 2).value).strip() not in ('Итого', 'Сумма'):
+                nm = _norm_name(ws.cell(rr, 2).value)
+                for i, (c0, _) in enumerate(dates):
+                    en, ex, out, win = [num(ws.cell(rr, c0 + k).value) for k in range(4)]
+                    if not en: continue
+                    if win is None: win = (out or 0) - en - (ex or 0)
+                    days[i]['players'].append(dict(name=nm, entry=en, extra=ex or 0, exit=out or 0, win=win))
+                rr += 1
+            series.append(dict(id='IS' + dates[0][1].strftime('%y%m'), title=_series_title([d for _, d in dates]), year=dates[0][1].year,
+                               start=dates[0][1].strftime('%Y-%m-%d'), days=days, source='Excel «Непокер в Циферблате»', status='завершена'))
+    return series
+
+
+def load_current_inter():
+    p = os.path.join(HERE, 'interseason', 'current.json')
+    if not os.path.exists(p): return None, None
+    cur = json.load(open(p, encoding='utf-8'))
+    days = []
+    for k in sorted(cur['days'], key=int):
+        rows = [dict(name=_norm_name(x['name']), entry=x.get('entry', 0), extra=x.get('extra', 0), exit=x.get('exit', 0), win=x.get('win', 0)) for x in cur['days'][k]]
+        days.append(dict(n=int(k), date=cur['dates'].get(k, ''), players=rows))
+    if not days: return None, cur
+    planned = len(cur.get('dates', {}))
+    first = cur['dates'].get(str(days[0]['n']), '01.01.1970').split('.')
+    s = dict(id='IS' + first[2][2:] + first[1], title='Межсезонка, октябрь 2026' if first[1] == '10' else 'Межсезонка (текущая)', year=int(first[2]),
+             start=f'{first[2]}-{first[1]}-{first[0]}', days=days, planned_days=planned, source=f"сайт результатов, {cur.get('fetched', '')}",
+             status='идёт', hunting=[dict(name=_norm_name(h['name']), value=h['value']) for h in cur.get('hunting', [])])
+    return s, cur
+
+
+def build_interseason(result, pl):
+    series = parse_interseasons()
+    cur_series, cur = load_current_inter()
+    if cur_series: series.append(cur_series)
+    series.sort(key=lambda s: s['start'])
+    alltime = {}
+    for s in series:
+        tot = {}
+        for d in s['days']:
+            for p in d['players']:
+                t = tot.setdefault(p['name'], dict(name=p['name'], days=0, win=0, best=-10**9, extra=0, wins_days=0, per_day={}))
+                t['days'] += 1; t['win'] += p['win']; t['best'] = max(t['best'], p['win']); t['extra'] += p['extra']; t['wins_days'] += p['win'] > 0
+                t['per_day'][d['n']] = p['win']
+        s['standings'] = sorted(tot.values(), key=lambda t: -t['win'])
+        s['players_total'] = len(tot)
+        for t in tot.values():
+            a = alltime.setdefault(t['name'], dict(name=t['name'], series=0, days=0, win=0, best=-10**9, pos_days=0, series_wins=0))
+            a['series'] += 1; a['days'] += t['days']; a['win'] += t['win']; a['best'] = max(a['best'], t['best']); a['pos_days'] += t['wins_days']
+        if s['status'] == 'завершена' and s['standings']: alltime[s['standings'][0]['name']]['series_wins'] += 1
+    result['interseason'] = dict(series=series, alltime=sorted(alltime.values(), key=lambda a: -a['win']))
+    # рейтинг: добавки после дней текущей межсезонки (сайт даёт прирост рейтинга, считаем нарастающим итогом)
+    if cur and cur.get('rating_add'):
+        base = {_norm_name(x['name']): x['rating'] for x in cur.get('rating_before', [])}
+        step = {}
+        for k in sorted(cur['rating_add'], key=int):
+            e = 52 + int(k)
+            result['events'][str(e)] = dict(label=f'Межсезонка · день {k}', kind='inter', tid=None)
+            for x in cur['rating_add'][k]:
+                nm = _norm_name(x['name'])
+                base[nm] = base.get(nm, 0) + x['addition']
+                step.setdefault(nm, []).append((e, x['addition'], base[nm]))
+        order = sorted(base, key=lambda n: -base[n])
+        rank = {n: i + 1 for i, n in enumerate(order)}
+        for n, p in pl.items():
+            if n in step and p.get('series') is not None:
+                for e, add, rt in step[n]:
+                    p['series'].append(dict(e=e, pts=add, rating=rt, rank=None))
+            if n in base:
+                p['rating_now'] = base[n]; p['rating_rank'] = rank[n]
+                if p.get('series'): p['series'][-1]['rank'] = rank[n]
+        result['checks'].append(dict(level='info', text='Рейтинг учитывает межсезонку: прирост рейтинга после каждого дня взят с сайта результатов (fetch_site.py) и добавляется нарастающим итогом.'))
+    if cur_series:
+        result['checks'].append(dict(level='info', text=f"Текущая межсезонка загружена с сайта результатов ({cur_series['source']}): дней с данными {len(cur_series['days'])} из {cur_series.get('planned_days', '?')}."))
+
+
 def main():
     events = load_rating()
     labels = load_labels()
@@ -456,6 +561,7 @@ def main():
     result['players'] = pl
     npath = os.path.join(HERE, 'names.json')
     result['display'] = json.load(open(npath, encoding='utf-8')) if os.path.exists(npath) else {}
+    build_interseason(result, pl)
     os.makedirs(os.path.join(HERE, 'data'), exist_ok=True)
     with open(os.path.join(HERE, 'data', 'data.json'), 'w', encoding='utf-8') as fh:
         json.dump(result, fh, ensure_ascii=False)

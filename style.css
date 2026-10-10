@@ -302,3 +302,12 @@ table.heat td.l a.pl{border-bottom:1px dotted var(--mute)}
   table.cmp th,table.cmp td{white-space:normal;overflow-wrap:anywhere}
   .ht th,.ht td{padding:6px 4px}
 }
+
+/* межсезонка */
+table.istab td.dcol,table.istab th.dcol{font-size:12.5px;min-width:56px}
+@media (max-width:640px){
+  .istab .dcol{display:none}
+  .iatab th:nth-child(3),.iatab td:nth-child(3),.iatab th:nth-child(4),.iatab td:nth-child(4){display:none}
+  .istab td.l,.iatab td.l,.itday td.l{position:static;min-width:0;max-width:none;white-space:normal;overflow-wrap:anywhere}
+  .itday th:nth-child(4),.itday td:nth-child(4){display:none}
+}
