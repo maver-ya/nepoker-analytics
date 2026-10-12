@@ -562,6 +562,8 @@ def main():
     npath = os.path.join(HERE, 'names.json')
     result['display'] = json.load(open(npath, encoding='utf-8')) if os.path.exists(npath) else {}
     build_interseason(result, pl)
+    import datetime as _dt
+    result['generated'] = _dt.datetime.now().strftime('%d.%m.%Y %H:%M')
     os.makedirs(os.path.join(HERE, 'data'), exist_ok=True)
     with open(os.path.join(HERE, 'data', 'data.json'), 'w', encoding='utf-8') as fh:
         json.dump(result, fh, ensure_ascii=False)
