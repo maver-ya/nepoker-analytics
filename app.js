@@ -162,6 +162,12 @@
   CA = buildCtx(T); applyFilter();
 
   /* ---------- страницы ---------- */
+  function stackBar(ranks) {
+    var B = [['чиплидер', 'var(--gold)', function (r) { return r === 1; }], ['2–3-й стек', 'var(--green)', function (r) { return r >= 2 && r <= 3; }], ['4–10-й стек', 'var(--blue)', function (r) { return r >= 4 && r <= 10; }], ['ниже 10-го', 'var(--bad)', function (r) { return r > 10; }]];
+    var cnt = B.map(function (b) { return ranks.filter(b[2]).length; });
+    return '<div class="sbar" role="img" aria-label="Откуда стартовали победители">' + B.map(function (b, i) { return cnt[i] ? '<span style="flex-grow:' + cnt[i] + ';background:' + b[1] + '" title="' + b[0] + ': ' + cnt[i] + '"></span>' : ''; }).join('') + '</div>' +
+      '<div class="sleg">' + B.map(function (b, i) { return '<span><i style="background:' + b[1] + '"></i>' + b[0] + ' — <b>' + cnt[i] + '</b></span>'; }).join('') + '</div>';
+  }
   function podium(rows) {
     var order = [1, 0, 2], cls = ['s1', 's2', 's3'], med = ['🥇', '🥈', '🥉'], out = '<div class="podium">';
     order.forEach(function (i) {
@@ -190,8 +196,8 @@
         return '<div class="lrow"><span class="n">' + (i + 1) + '</span>' + plink(s.name, 'sm') + '<b class="' + (s.win > 0 ? 'pos' : 'neg') + '">' + (s.win > 0 ? '+' : '') + fmt(s.win) + '</b></div>';
       }).join('') + '<p class="note" style="margin:6px 0 0">' + cs.days.length + (cs.planned_days ? ' из ' + cs.planned_days : '') + ' дн. · ' + cs.players_total + ' участников</p></div>' : '') + '</div>';
     h += '<div class="strip"><div><b>' + TA.length + '</b><span>турниров в выборке</span></div><div><b>' + E.length + '</b><span>финальных выступлений</span></div><div><b>' + uniq + '</b><span>разных финалистов</span></div><div><b>' + leaderWins + ' из ' + stackTs.length + '</b><span>раз чиплидер выиграл финал</span></div></div>';
-    h += '<h2>Что показывают данные</h2><div class="grid g2">';
-    h += ins('bad', 'Проклятие чиплидера', 'Чиплидер по стеку ' + (leaderWins ? 'выиграл ' + leaderWins + ' из ' : 'не выиграл ни одного финала из ') + stackTs.length + ' финалов (где известны стеки). В среднем он финишировал ' + f1(avgLeader) + '-м. Ранги стека победителей: ' + winnersRank.join(', ') + '.', '🪦');
+    h += '<h2>Что показывают данные</h2><div class="grid ig">';
+    h += ins('bad', 'Проклятие чиплидера', 'Чиплидер — игрок с самым большим стеком на старте финала — ' + (leaderWins ? 'выиграл <b>' + leaderWins + ' из ' + stackTs.length + '</b> финалов' : 'не выиграл ни одного из ' + stackTs.length + ' финалов') + ', в среднем он финишировал ' + f1(avgLeader) + '-м. Откуда стартовали победители:' + stackBar(winnersRank), '🪦');
     if (bestC) h += ins('good', 'Лучший камбек сезона', link(bestC.name) + ' — ' + esc(bestC.t.short) + (bestC.t.nonstandard ? ' ⚠' : '') + ': стартовал ' + bestC.rank + '-м по стеку из ' + bestC.n + ', финишировал ' + bestC.place + '-м.', '🔥');
     if (worstC) h += ins('bad', 'Самая большая потеря преимущества', link(worstC.name) + ' — ' + esc(worstC.t.short) + (worstC.t.nonstandard ? ' ⚠' : '') + ': стартовал ' + worstC.rank + '-м по стеку, финишировал ' + worstC.place + '-м из ' + worstC.n + '.', '📉');
     var q = [0, 1, 2, 3].map(function (i) { var a2 = ES.filter(function (e) { return e.q === i; }); return { tab: a2.filter(function (e) { return e.place <= 9; }).length / (a2.length || 1) }; });
@@ -229,7 +235,7 @@
     if (t.flag) h += '<div class="flag">⚠ ' + esc(t.flag) + '</div>';
     if (t.stack_available) {
       h += '<div class="grid g4" style="margin:10px 0">' + kpi(esc(t.chip_leader.name), 'чиплидер — финишировал ' + t.chip_leader.place + '-м') + kpi(esc(t.winner.name), 'победитель — стартовал ' + t.winner.stack_rank + '-м по стеку') +
-        kpi(t.corr == null ? '—' : f1(t.corr), 'корреляция ранга стека и места') + kpi(f1(t.top3_stack_avg_place), 'среднее место трёх крупнейших стеков') + '</div>';
+        kpi(t.corr == null ? '—' : f1(t.corr), 'корреляция ранга стека и места' + tip('От −1 до 1. Ближе к 1 — размер стека почти решает итог; около 0 — стек не влияет')) + kpi(f1(t.top3_stack_avg_place), 'среднее место трёх крупнейших стеков' + tip('Как в среднем финишировали три игрока с самыми большими стеками на старте')) + '</div>';
       h += '<h2>Стек → итог</h2><p class="note">Светлый круг — место по стеку, цветной — итоговое место; двигайте ползунок или нажмите «Повторить». Зелёный: обыграл свой стек, красный: не оправдал.</p><div class="raceui"><button class="chip" id="rplay">▶ Повторить</button><input type="range" id="rr" min="0" max="100" value="100" aria-label="Ход финала"><span id="rlab" class="note"></span></div><div class="chart">' + dumbbell(t) + '</div>' + capDumb(t);
     }
     h += '<h2>Результаты финала</h2><div class="tw"><table class="rtab"><thead><tr><th>' + (MOB ? '№' : 'Место') + '</th><th class="l">Игрок</th><th>Дней</th>' + (t.stack_available ? (MOB ? '<th>Стек</th><th>Ранг' + tip('Место по размеру стека среди финалистов: 1 — самый большой') + '</th><th>Δ' + tip('Ранг по стеку минус итоговое место. Плюс — игрок обыграл свой стек') + '</th>' : '<th>Стек финала</th><th>Ранг стека' + tip('Место по размеру стека среди финалистов: 1 — самый большой') + '</th><th>Δ мест' + tip('Ранг по стеку минус итоговое место. Плюс — игрок обыграл свой стек') + '</th>') : '') + '<th>Очки рейтинга</th></tr></thead><tbody>';
@@ -270,7 +276,7 @@
     return h;
   }
   function renderPT() {
-    var cols = [['name', 'Игрок', 'l'], ['finals', 'Финалов'], ['wins', 'Побед'], ['podiums', 'Топ-3'], ['table', 'Фин.стол'], ['avg_place', 'Ср. место'], ['avg_delta', 'Ср. Δ мест'], ['sd_place', 'Разброс']];
+    var cols = [['name', 'Игрок', 'l'], ['finals', 'Финалов'], ['wins', 'Побед'], ['podiums', 'Топ-3'], ['table', 'Фин.стол' + tip('Сколько раз игрок занимал места 1–9 (финальный стол)')], ['avg_place', 'Ср. место'], ['avg_delta', 'Ср. Δ мест' + tip('Ранг по стеку минус итоговое место, в среднем. Плюс — игрок обычно обыгрывает свой стек')], ['sd_place', 'Разброс' + tip('Стандартное отклонение мест: чем меньше, тем стабильнее результаты')]];
     var rows = Object.keys(P).map(function (k) { return P[k]; }).filter(function (p) { return (p.name + ' ' + disp(p.name)).toLowerCase().indexOf(q.toLowerCase()) >= 0; });
     rows.sort(function (a, b) { var x = a[sortKey], y = b[sortKey]; if (x == null) return 1; if (y == null) return -1; return typeof x === 'string' ? sortDir * x.localeCompare(y) : sortDir * (x - y); });
     var h = '<div class="tw tall"><table class="ptab"><thead><tr>' + cols.map(function (c) { return '<th class="s ' + (c[2] || '') + '" data-k="' + c[0] + '">' + c[1] + (sortKey === c[0] ? (sortDir > 0 ? ' ▲' : ' ▼') : '') + '</th>'; }).join('') + '</tr></thead><tbody>';
@@ -324,7 +330,7 @@
       if (pp.hand) bits.push('любимая рука <b>' + esc(pp.hand) + '</b>');
       if (bits.length || pp.motto) h += '<div class="card passport">' + bits.join(' · ') + (pp.motto ? '<br><i class="note">«' + esc(pp.motto) + '»</i>' : '') + '</div>';
     }
-    h += '<div class="grid g4" style="margin-top:12px">' + kpi(p.wins, 'побед') + kpi(p.podiums, 'призовых мест') + kpi(p.table, 'финальных столов') + kpi(p.avg_delta == null ? '—' : f1(p.avg_delta), 'ср. Δ мест (стек → итог)') +
+    h += '<div class="grid g4" style="margin-top:12px">' + kpi(p.wins, 'побед') + kpi(p.podiums, 'призовых мест') + kpi(p.table, 'финальных столов') + kpi(p.avg_delta == null ? '—' : f1(p.avg_delta), 'ср. Δ мест (стек → итог)' + tip('Ранг по стеку минус итоговое место. Плюс — игрок обычно обыгрывает свой стек')) +
       (p.rating_now != null ? kpi(p.rating_now, 'рейтинг (#' + (p.rating_rank || '—') + ')') : '') + '</div>';
     h += '<h2>Рейтинг по событиям</h2><p class="note">Рейтинг — сумма ' + D.rating_top + ' лучших результатов. Золотые точки — финалы турниров; наведите курсор на точку.</p><div class="chart">' + ratingChart(p) + '</div>' + capRating(p);
     h += '<h2>История финалов</h2><div class="tw"><table class="htab"><thead><tr><th class="l">Турнир</th><th>Место</th><th>из</th><th>Ранг стека</th><th>Δ мест</th><th>Стек</th><th>Дней</th><th>Дневная форма</th></tr></thead><tbody>';
@@ -484,7 +490,7 @@
       cmpRow('финалов', pa.finals, pb.finals, 'high') + cmpRow('побед', pa.wins, pb.wins, 'high') + cmpRow('призовых мест (топ-3)', pa.podiums, pb.podiums, 'high') +
       cmpRow('финальных столов (топ-9)', pa.table, pb.table, 'high') + cmpRow('доля финальных столов', pct(pa), pct(pb), 'high', function (v) { return v == null ? '—' : v + '%'; }) +
       cmpRow('среднее место', pa.avg_place, pb.avg_place, 'low', f1) + cmpRow('лучшее место', Math.min.apply(null, pa.places), Math.min.apply(null, pb.places), 'low') +
-      cmpRow('ср. Δ мест (стек → итог)', pa.avg_delta, pb.avg_delta, 'high', f1) + cmpRow('разброс мест (меньше — стабильнее)', pa.sd_place, pb.sd_place, 'low', f1) +
+      cmpRow('ср. Δ мест (стек → итог)' + tip('Ранг по стеку минус итоговое место. Плюс — игрок обычно обыгрывает свой стек'), pa.avg_delta, pb.avg_delta, 'high', f1) + cmpRow('разброс мест (меньше — стабильнее)', pa.sd_place, pb.sd_place, 'low', f1) +
       cmpRow('посещений клуба', pa.passport && pa.passport.visits, pb.passport && pb.passport.visits, 'high') +
       cmpRow('первое посещение', pa.passport && pa.passport.first, pb.passport && pb.passport.first, null, function (v) { return v ? v.split('-').reverse().join('.') : '—'; });
     h += '<div class="tw" style="margin-top:12px"><table class="cmp"><thead><tr><th style="text-align:right">' + esc(disp(a)) + '</th><th>показатель</th><th style="text-align:left">' + esc(disp(b)) + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
@@ -555,7 +561,7 @@
     h += '<h2 style="margin-top:6px">' + esc(s.title) + ' <span class="tag">' + esc(s.status) + '</span></h2>';
     h += '<div class="grid g4" style="margin:8px 0">' + kpi(s.players_total, 'участников') + kpi(s.days.length + (s.planned_days ? ' из ' + s.planned_days : ''), 'игровых дней') + kpi(esc(disp(lead.name)), 'чиплидер: ' + (lead.win > 0 ? '+' : '') + fmt(lead.win)) + kpi(esc(disp(bestDay.name)), 'лучший день: +' + fmt(bestDay.win) + ' (день ' + bestDay.n + ')') + '</div>';
     var nd = s.days.length;
-    h += '<h2>Общий зачёт</h2><div class="tw tall"><table class="istab"><thead><tr><th>№</th><th class="l">Игрок</th><th>Дней</th><th>Сумма</th>' + s.days.map(function (d) { return '<th class="dcol">Д' + d.n + '</th>'; }).join('') + '</tr></thead><tbody>';
+    h += '<h2>Общий зачёт</h2><div class="tw tall"><table class="istab"><thead><tr><th>№</th><th class="l">Игрок</th><th>Дней</th><th>Сумма' + tip('Выигрыш = выход − вход − добор, в фишках') + '</th>' + s.days.map(function (d) { return '<th class="dcol">Д' + d.n + '</th>'; }).join('') + '</tr></thead><tbody>';
     st.forEach(function (t, i) {
       h += '<tr class="' + (i < 3 ? 'p' + (i + 1) : '') + '"><td>' + (i + 1) + '</td><td class="l">' + plink(t.name) + '</td><td>' + t.days + '</td><td class="' + (t.win > 0 ? 'pos' : (t.win < 0 ? 'neg' : '')) + '"><b>' + (t.win > 0 ? '+' : '') + fmt(t.win) + '</b></td>' +
         s.days.map(function (d) { var v = t.per_day[d.n]; return '<td class="dcol ' + (v > 0 ? 'pos' : (v < 0 ? 'neg' : '')) + '">' + (v == null ? '·' : (v > 0 ? '+' : '') + fmt(v)) + '</td>'; }).join('') + '</tr>';
@@ -579,7 +585,7 @@
 
   function pMetrics() {
     var h = '<h1>Метрики</h1><p class="sub">Базовые показатели из концепта: как реализуется стек, проклятие чиплидера, камбеки. Считаются по турнирам, где известны финальные стеки (' + stackTs.length + ' из ' + T.length + ').</p>' + filterBar();
-    h += '<h2>1. Проклятие чиплидера</h2><div class="tw"><table class="mt1"><thead><tr><th class="l">Турнир</th><th class="l">Чиплидер по стеку</th><th>Его место</th><th class="l">Победитель</th><th>Ранг стека победителя</th><th>Ср. место топ-3 стеков</th></tr></thead><tbody>';
+    h += '<h2>1. Проклятие чиплидера</h2><div class="tw"><table class="mt1"><thead><tr><th class="l">Турнир</th><th class="l">Чиплидер по стеку</th><th>Его место</th><th class="l">Победитель</th><th>Ранг стека победителя' + tip('Каким по размеру стека стартовал победитель: 1 — самым большим') + '</th><th>Ср. место топ-3 стеков' + tip('Среднее итоговое место трёх крупнейших стеков') + '</th></tr></thead><tbody>';
     stackTs.forEach(function (t) { h += '<tr><td class="l"><a class="pl" href="#tournaments/' + t.id + '">' + esc(t.short) + '</a></td><td class="l">' + link(t.chip_leader.name) + '</td><td class="' + (t.chip_leader.place === 1 ? 'pos' : '') + '">' + t.chip_leader.place + '</td><td class="l">' + link(t.winner.name) + '</td><td>' + t.winner.stack_rank + '</td><td>' + f1(t.top3_stack_avg_place) + '</td></tr>'; });
     h += '</tbody></table></div>';
     h += '<h2>2. Конвертация стеков</h2><p class="note">Игроки разбиты на четверти по рангу стека внутри своего турнира.</p><div class="tw"><table><thead><tr>' + (MOB ? '<th class="l">Стек</th><th>Игр</th><th>Ср. место</th><th>Ф. стол</th><th>Топ-3</th>' : '<th class="l">Четверть по стеку</th><th>Выступлений</th><th>Ср. итоговое место, % поля</th><th>Дошли до финального стола</th><th>В топ-3</th>') + '</tr></thead><tbody>';
