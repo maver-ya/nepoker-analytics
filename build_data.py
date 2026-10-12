@@ -340,8 +340,8 @@ def load_current_inter():
     return s, cur
 
 
-def build_interseason(result, pl):
-    series = parse_interseasons()
+def build_interseason(result, pl, archive=None):
+    series = [dict(s) for s in archive] if archive is not None else parse_interseasons()
     cur_series, cur = load_current_inter()
     if cur_series: series.append(cur_series)
     series.sort(key=lambda s: s['start'])
@@ -383,6 +383,47 @@ def build_interseason(result, pl):
         result['checks'].append(dict(level='info', text='Рейтинг учитывает межсезонку: прирост рейтинга после каждого дня взят с сайта результатов (fetch_site.py) и добавляется нарастающим итогом.'))
     if cur_series:
         result['checks'].append(dict(level='info', text=f"Текущая межсезонка загружена с сайта результатов ({cur_series['source']}): дней с данными {len(cur_series['days'])} из {cur_series.get('planned_days', '?')}."))
+
+
+def data_checks(result, events, pl):
+    """Автоматические проверки после сборки: добавляются в result['checks'] и считаются в result['checks_summary']."""
+    import difflib
+    ch = result['checks']
+    names = set(pl)
+    # похожие ники среди игроков базы (возможные дубли)
+    pool = sorted(names)
+    seen = set()
+    for n in pool:
+        for m in difflib.get_close_matches(n, pool, 3, 0.88):
+            if m != n and (m, n) not in seen and n.split()[0] == m.split()[0]:
+                seen.add((n, m)); ch.append(dict(level='warn', text=f'Похожие ники в базе: «{n}» и «{m}» — один человек? Если да, добавьте пару в ALIASES.'))
+    # межсезонка: игроки без финалов в базе
+    it = result.get('interseason', {})
+    cur = next((s for s in it.get('series', []) if s.get('status') == 'идёт'), None)
+    if cur:
+        new = sorted({p['name'] for d in cur['days'] for p in d['players']} - names)
+        if new:
+            ch.append(dict(level='info', text=f"В текущей межсезонке {len(new)} игроков без финалов в базе (профиль появится после первого финала): " + ', '.join(new[:12]) + ('…' if len(new) > 12 else '')))
+    # рейтинг: совпадение с рейтингом сайта результатов
+    p = os.path.join(HERE, 'interseason', 'current.json')
+    if os.path.exists(p):
+        cj = json.load(open(p, encoding='utf-8'))
+        bad = []
+        for x in cj.get('rating_before', []):
+            n = _norm_name(x['name'])
+            if n in pl and pl[n].get('series'):
+                base = [z for z in pl[n]['series'] if z['e'] <= 52]
+                if base and base[-1]['rating'] != x['rating']: bad.append(f"{n}: у нас {base[-1]['rating']}, на сайте {x['rating']}")
+        if bad:
+            ch.append(dict(level='warn', text=f'Рейтинг до межсезонки расходится с сайтом результатов у {len(bad)} игроков: ' + '; '.join(bad[:4]) + ('…' if len(bad) > 4 else '')))
+        else:
+            ch.append(dict(level='info', text='Рейтинг до межсезонки совпадает с рейтингом на сайте результатов.'))
+    # турниры без стеков
+    nost = [t['short'] for t in result['tournaments'] if not t.get('stack_available')]
+    if nost: ch.append(dict(level='info', text='Нет данных о финальных стеках: ' + ', '.join(nost) + '. В метриках стека эти турниры не участвуют.'))
+    result['checks_summary'] = dict(warn=sum(1 for c in ch if c['level'] == 'warn'), info=sum(1 for c in ch if c['level'] == 'info'))
+    for c in ch:
+        print(('[!] ' if c['level'] == 'warn' else '[i] ') + c['text'][:170], file=sys.stderr)
 
 
 def main():
@@ -562,6 +603,9 @@ def main():
     npath = os.path.join(HERE, 'names.json')
     result['display'] = json.load(open(npath, encoding='utf-8')) if os.path.exists(npath) else {}
     build_interseason(result, pl)
+    data_checks(result, events, pl)
+    import datetime as _dt
+    result['generated'] = _dt.datetime.now().strftime('%d.%m.%Y %H:%M')
     os.makedirs(os.path.join(HERE, 'data'), exist_ok=True)
     with open(os.path.join(HERE, 'data', 'data.json'), 'w', encoding='utf-8') as fh:
         json.dump(result, fh, ensure_ascii=False)

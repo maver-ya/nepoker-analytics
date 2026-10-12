@@ -4,32 +4,41 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>неПокер: аналитика турниров</title>
-<link rel="stylesheet" href="style.css?v=23">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('np_theme')||'dark'}catch(e){document.documentElement.dataset.theme='dark'}</script>
+<link rel="stylesheet" href="style.css?v=41">
 </head>
 <body>
 <header class="top">
-  <div class="wrap top-in">
-    <a class="brand" href="#overview"><span class="suit">♠</span> неПокер <small>аналитика турниров · 2025–2026</small></a>
-    <button id="burger" class="burger" type="button" aria-label="Меню" aria-expanded="false" aria-controls="nav"><span></span><span></span><span></span></button>
+  <div class="top-in">
+    <a class="brand" href="#overview"><span class="suit">♠</span> неПокер</a>
     <nav id="nav">
       <a href="#overview" data-t="overview">Обзор</a>
       <a href="#tournaments" data-t="tournaments">Турниры</a>
       <a href="#players" data-t="players">Игроки</a>
-      <a href="#metrics" data-t="metrics">Метрики</a>
-      <a href="#heat" data-t="heat">Карта</a>
-      <a href="#compare" data-t="compare">Сравнение</a>
-      <a href="#hunt" data-t="hunt">Охота</a>
+      <a href="#rating" data-t="rating">Рейтинг</a>
       <a href="#inter" data-t="inter">Межсезонка</a>
-      <a href="#fun" data-t="fun">Номинации</a>
-      <a href="#report" data-t="report">Отчёт</a>
-      <a href="#data" data-t="data">О данных</a>
+      <a href="#fun" data-t="fun">Интересное</a>
+      <div class="more" id="more">
+        <button type="button" id="morebtn" aria-haspopup="true" aria-expanded="false">Ещё ▾</button>
+        <div class="moremenu" id="moremenu">
+          <a href="#heat" data-t="heat">Карта</a>
+          <a href="#compare" data-t="compare">Сравнение</a>
+          <a href="#fame" data-t="fame">Зал славы</a>
+          <a href="#report" data-t="report">Отчёт</a>
+          <a href="#data" data-t="data">О данных</a>
+        </div>
+      </div>
     </nav>
     <div class="gs"><input id="gs" type="search" placeholder="Найти игрока  ( / )" autocomplete="off" aria-label="Поиск игрока"><div class="gsr" id="gsr" hidden></div></div>
+    <button id="fbtn" class="hbtn fbtn" type="button" aria-label="Фильтр данных" aria-expanded="false">⚙ <span class="lbl">Фильтр</span> <b id="fbadge"></b></button>
+    <button id="tbtn" class="hbtn" type="button" aria-label="Сменить тему">☀</button>
+    <button id="burger" class="burger" type="button" aria-label="Меню" aria-expanded="false" aria-controls="nav"><span></span><span></span><span></span></button>
   </div>
+  <div class="fpanel" id="fpanel" hidden></div>
 </header>
 <main class="wrap" id="app" aria-live="polite"></main>
-<footer class="wrap foot">Данные: таблицы турниров 2026 и рейтинг клуба. Места в финалах восстановлены из очков рейтинга. Обновление: <code>python build_data.py</code></footer>
-<script src="data/data.js?v=23"></script>
-<script src="app.js?v=23"></script>
+<footer class="wrap foot"><span id="foot">Данные: таблицы турниров и рейтинг клуба. Места в финалах восстановлены из очков рейтинга.</span><span>Обновление: <code>python build_data.py</code></span></footer>
+<script src="data/data.js?v=41"></script>
+<script src="app.js?v=41"></script>
 </body>
 </html>
