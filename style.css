@@ -440,3 +440,120 @@ h1.ph{gap:16px}
 td.l a.pl.pa,td.l a.pa{display:inline-flex;gap:12px;align-items:center}
 td.l a.pa .av{margin-right:0}
 @media (max-width:640px){td.l a.pl.pa,td.l a.pa{gap:10px}}
+
+/* ===== пакет Б: рейтинг, зал славы, лента, профиль 2.0, «Интересное» ===== */
+.subtabs{display:flex;gap:4px;margin:8px 0 14px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.subtabs::-webkit-scrollbar{display:none}
+.subtabs a{padding:8px 14px;color:var(--mute);text-decoration:none;border-bottom:3px solid transparent;font-weight:600;white-space:nowrap;margin-bottom:-1px}
+.subtabs a:hover{color:var(--ink)}
+.subtabs a.on{color:var(--head);border-bottom-color:var(--gold)}
+.srch{margin:12px 0 10px}
+.srch input{width:100%;max-width:360px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit}
+.rkt td,.rkt th{white-space:nowrap}
+.rkt td.l{white-space:normal}
+.rkt tr.out td{color:var(--mute)}
+.rkt tr.in td{background:rgba(88,184,134,.09)}
+:root[data-theme="light"] .rkt tr.in td{background:rgba(31,111,67,.08)}
+.feed{padding:6px 14px;margin-bottom:14px}
+.fi{display:grid;grid-template-columns:48px 26px 1fr;gap:8px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line)}
+.fi:first-child{border-top:0}
+.fd{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.fic{text-align:center}
+.fi div{min-width:0;overflow-wrap:anywhere}
+.hof{display:flex;gap:14px;align-items:center}
+.hof .hn{font-size:38px;font-weight:800;color:var(--gold);line-height:1;min-width:58px;text-align:center}
+.hof .hn small{display:block;font-size:20px}
+.hof .hb{min-width:0}
+.wchips{display:flex;flex-wrap:wrap;gap:4px}
+.wchips .tag{margin:0;text-decoration:none}
+.rec{display:flex;gap:12px;align-items:flex-start}
+.rec .ri{font-size:26px;line-height:1}
+.rec h3{font-size:13px;color:var(--mute);font-weight:600;margin:0 0 4px}
+.rec .rv{font-size:22px;font-weight:800;color:var(--head);line-height:1.2}
+.rec .rw{margin-bottom:2px}
+.chm td,.chm th{white-space:nowrap}
+.chm td.l{white-space:normal}
+.fstrip{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.fchip{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:54px;padding:6px 8px;border-radius:10px;text-decoration:none;border:1px solid var(--line);line-height:1.15}
+.fchip b{font-size:20px}
+.fchip small{font-size:11px;opacity:.85;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fchip.pw,.fl.pw{background:var(--gold);color:#1c2622;border-color:var(--gold)}
+.fchip.pp,.fl.pp{background:#a9b4af;color:#1c2622;border-color:#a9b4af}
+.fchip.pt,.fl.pt{background:var(--soft);color:var(--ink);border-color:var(--green)}
+.fchip.pn,.fl.pn{background:var(--card);color:var(--mute)}
+.legend .fl{display:inline-block;width:11px;height:11px;border-radius:3px;border:1px solid var(--line);margin-right:5px;vertical-align:-1px}
+.sw ul{margin:4px 0 0;padding-left:18px}
+.sw li{margin:4px 0}
+.sw.good{border-left:4px solid var(--good)}
+.sw.bad{border-left:4px solid var(--bad)}
+.pact{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0 10px}
+.pact button{cursor:pointer;font:inherit;font-size:14px}
+.pact .btn.ghost{background:transparent;font-weight:600}
+
+/* анимации: подъём пьедестала и плавное появление строк */
+@keyframes stepup{from{clip-path:inset(100% 0 0 0)}to{clip-path:inset(0 0 0 0)}}
+@keyframes rowin{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.pc .step{animation:stepup .75s cubic-bezier(.2,.8,.2,1) both}
+.pc.s3 .step{animation-delay:.15s}.pc.s2 .step{animation-delay:.4s}.pc.s1 .step{animation-delay:.65s}
+.pc .av,.pc .nm,.pc .sub2{animation:rise .55s ease both}
+.pc.s3 .av,.pc.s3 .nm,.pc.s3 .sub2{animation-delay:.3s}
+.pc.s2 .av,.pc.s2 .nm,.pc.s2 .sub2{animation-delay:.55s}
+.pc.s1 .av,.pc.s1 .nm,.pc.s1 .sub2{animation-delay:.8s}
+#app.enter .tw tbody tr{animation:rowin .5s ease both}
+#app.enter .tw tbody tr:nth-child(1){animation-delay:.02s}
+#app.enter .tw tbody tr:nth-child(2){animation-delay:.05s}
+#app.enter .tw tbody tr:nth-child(3){animation-delay:.08s}
+#app.enter .tw tbody tr:nth-child(4){animation-delay:.11s}
+#app.enter .tw tbody tr:nth-child(5){animation-delay:.14s}
+#app.enter .tw tbody tr:nth-child(6){animation-delay:.17s}
+#app.enter .tw tbody tr:nth-child(7){animation-delay:.2s}
+#app.enter .tw tbody tr:nth-child(8){animation-delay:.23s}
+#app.enter .tw tbody tr:nth-child(9){animation-delay:.26s}
+#app.enter .tw tbody tr:nth-child(10){animation-delay:.29s}
+#app.enter .tw tbody tr:nth-child(n+11){animation-delay:.32s}
+.noanim .pc *,.noanim tr{animation:none!important}
+
+@media (max-width:640px){
+  .fi{grid-template-columns:42px 22px 1fr}
+  .hof .hn{font-size:30px;min-width:46px}
+  .fchip{min-width:46px;padding:5px 6px}
+  .fchip b{font-size:17px}
+  .rec .rv{font-size:19px}
+  .subtabs a{padding:8px 10px;font-size:14px}
+  .rkt td,.rkt th{white-space:normal}
+  .rkt th:nth-child(4),.rkt td:nth-child(4){width:54px}
+  .rkt th:nth-child(5),.rkt td:nth-child(5){width:50px}
+  .rkt th:nth-child(6),.rkt td:nth-child(6){display:none}
+  .rkt.tbd th:nth-child(6),.rkt.tbd td:nth-child(6){display:table-cell}
+  .rkt th:nth-child(3),.rkt td:nth-child(3){width:50px}
+  .chm th:nth-child(2),.chm td:nth-child(2){display:none}
+}
+
+/* печать профиля игрока */
+@media print{
+  :root,:root[data-theme="dark"],:root[data-theme="light"]{--bg:#fff;--card:#fff;--ink:#111;--mute:#555;--line:#ccc;--soft:#eef2ef;--green:#1f6f43;--head:#14452f;--gold:#c8a24a;--good:#1f6f43;--bad:#b3261e;--shadow:transparent}
+  body{background:#fff!important;color:#111}
+  .top,.foot,.noprint,.pact,#fpanel,.fnote,.hero-links,.gs,.subtabs{display:none!important}
+  main{padding:0}
+  .wrap{max-width:none;padding:0}
+  *{animation:none!important;box-shadow:none!important}
+  .card,.chart,.tw,.fstrip,.sw{break-inside:avoid}
+  .tw{overflow:visible;border-color:#ccc}
+  .tw table{min-width:0}
+  a{color:inherit;text-decoration:none}
+  h1,h2{break-after:avoid}
+  .av{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  .fchip,.fl,.badge,.rkt tr.in td{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+}
+
+/* шапка: 6 пунктов меню + Ещё не помещались рядом с поиском */
+@media (min-width:641px){
+  .top-in{gap:10px 12px}
+  nav a{padding:6px 9px}
+  .gs{flex:0 1 150px;min-width:110px}
+}
+@media (min-width:641px) and (max-width:1010px){
+  .top-in{flex-wrap:wrap}
+  nav{order:10;flex:1 1 100%}
+  .gs{flex:1 1 150px;max-width:280px;margin-left:auto}
+}
