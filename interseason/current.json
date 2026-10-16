@@ -1,10 +1,10 @@
 {
  "source": "https://shurikshilkin.github.io/turnir-results/",
- "fetched": "15.10.2026 10:49",
+ "fetched": "16.10.2026 10:38",
  "title": "Межсезонка",
  "dates": {
-  "1": "08.10.2026",
   "2": "15.10.2026",
+  "1": "08.10.2026",
   "3": "22.10.2026",
   "4": "29.10.2026"
  },
@@ -283,6 +283,260 @@
     "exit": 0,
     "win": -8100
    }
+  ],
+  "2": [
+   {
+    "name": "Михаил Наб",
+    "entry": 1100,
+    "extra": 3000,
+    "exit": 30655,
+    "win": 26555
+   },
+   {
+    "name": "Том",
+    "entry": 1100,
+    "extra": 0,
+    "exit": 22565,
+    "win": 21465
+   },
+   {
+    "name": "Евгений Ц",
+    "entry": 1100,
+    "extra": 0,
+    "exit": 11060,
+    "win": 9960
+   },
+   {
+    "name": "Михаил Козадой",
+    "entry": 1100,
+    "extra": 0,
+    "exit": 9675,
+    "win": 8575
+   },
+   {
+    "name": "Вадим Константинов",
+    "entry": 1100,
+    "extra": 0,
+    "exit": 8155,
+    "win": 7055
+   },
+   {
+    "name": "Настя Буд",
+    "entry": 1100,
+    "extra": 1000,
+    "exit": 9150,
+    "win": 7050
+   },
+   {
+    "name": "grooveman",
+    "entry": 1100,
+    "extra": 0,
+    "exit": 7085,
+    "win": 5985
+   },
+   {
+    "name": "Надя Котик",
+    "entry": 1100,
+    "extra": 3000,
+    "exit": 9390,
+    "win": 5290
+   },
+   {
+    "name": "Мария Павлова",
+    "entry": 1100,
+    "extra": 3000,
+    "exit": 7775,
+    "win": 3675
+   },
+   {
+    "name": "Юрий Белый",
+    "entry": 1100,
+    "extra": 1000,
+    "exit": 3395,
+    "win": 1295
+   },
+   {
+    "name": "Богдан А",
+    "entry": 1100,
+    "extra": 0,
+    "exit": 1830,
+    "win": 730
+   },
+   {
+    "name": "Шурик Шилкин",
+    "entry": 1100,
+    "extra": 1000,
+    "exit": 2495,
+    "win": 395
+   },
+   {
+    "name": "Сергей Ш",
+    "entry": 1100,
+    "extra": 0,
+    "exit": 1275,
+    "win": 175
+   },
+   {
+    "name": "Глеб Макеев",
+    "entry": 1100,
+    "extra": 0,
+    "exit": 0,
+    "win": -1100
+   },
+   {
+    "name": "Полина Матыцына",
+    "entry": 1100,
+    "extra": 1000,
+    "exit": 815,
+    "win": -1285
+   },
+   {
+    "name": "Макар Аве",
+    "entry": 1100,
+    "extra": 1000,
+    "exit": 200,
+    "win": -1900
+   },
+   {
+    "name": "Денис Дон",
+    "entry": 1100,
+    "extra": 1000,
+    "exit": 0,
+    "win": -2100
+   },
+   {
+    "name": "Настя Кудрявая",
+    "entry": 1100,
+    "extra": 1000,
+    "exit": 0,
+    "win": -2100
+   },
+   {
+    "name": "Петя Пётр",
+    "entry": 1100,
+    "extra": 1000,
+    "exit": 0,
+    "win": -2100
+   },
+   {
+    "name": "Бенси",
+    "entry": 1100,
+    "extra": 2000,
+    "exit": 640,
+    "win": -2460
+   },
+   {
+    "name": "Аня Жук",
+    "entry": 1100,
+    "extra": 2000,
+    "exit": 0,
+    "win": -3100
+   },
+   {
+    "name": "Никита Караксик",
+    "entry": 1100,
+    "extra": 2000,
+    "exit": 0,
+    "win": -3100
+   },
+   {
+    "name": "Марсель",
+    "entry": 1100,
+    "extra": 2000,
+    "exit": 0,
+    "win": -3100
+   },
+   {
+    "name": "Соня Серж",
+    "entry": 1100,
+    "extra": 2000,
+    "exit": 0,
+    "win": -3100
+   },
+   {
+    "name": "Ирина Ага",
+    "entry": 1100,
+    "extra": 3000,
+    "exit": 200,
+    "win": -3900
+   },
+   {
+    "name": "Никита Никарагуа",
+    "entry": 1100,
+    "extra": 3000,
+    "exit": 0,
+    "win": -4100
+   },
+   {
+    "name": "Настя Pas",
+    "entry": 1100,
+    "extra": 3000,
+    "exit": 0,
+    "win": -4100
+   },
+   {
+    "name": "Глеб Витязь",
+    "entry": 1100,
+    "extra": 3000,
+    "exit": 0,
+    "win": -4100
+   },
+   {
+    "name": "Немощь",
+    "entry": 1100,
+    "extra": 4000,
+    "exit": 885,
+    "win": -4215
+   },
+   {
+    "name": "Федор К",
+    "entry": 1100,
+    "extra": 4000,
+    "exit": 0,
+    "win": -5100
+   },
+   {
+    "name": "Матвей Пригожий",
+    "entry": 1100,
+    "extra": 4000,
+    "exit": 0,
+    "win": -5100
+   },
+   {
+    "name": "Стас ISK",
+    "entry": 1100,
+    "extra": 4000,
+    "exit": 0,
+    "win": -5100
+   },
+   {
+    "name": "Артём SUB",
+    "entry": 1100,
+    "extra": 5000,
+    "exit": 0,
+    "win": -6100
+   },
+   {
+    "name": "Саша Коч",
+    "entry": 1100,
+    "extra": 6000,
+    "exit": 200,
+    "win": -6900
+   },
+   {
+    "name": "Кирилл Лед",
+    "entry": 1100,
+    "extra": 6000,
+    "exit": 0,
+    "win": -7100
+   },
+   {
+    "name": "Семён Ануфриев",
+    "entry": 1100,
+    "extra": 11000,
+    "exit": 3560,
+    "win": -8540
+   }
   ]
  },
  "hunting": [
@@ -295,27 +549,27 @@
    "value": 1400
   },
   {
-   "name": "Полина Матыцына",
+   "name": "Михаил Наб",
    "value": 1300
   },
   {
-   "name": "Егор АА 11",
+   "name": "Полина Матыцына",
    "value": 1200
   },
   {
-   "name": "Jane 007",
+   "name": "Егор АА 11",
    "value": 1100
   },
   {
-   "name": "Шурик Шилкин",
+   "name": "Jane 007",
    "value": 1000
   },
   {
-   "name": "Никита Зейн",
+   "name": "Шурик Шилкин",
    "value": 800
   },
   {
-   "name": "Михаил Наб",
+   "name": "Никита Зейн",
    "value": 800
   },
   {
@@ -331,11 +585,11 @@
    "value": 600
   },
   {
-   "name": "Немощь",
+   "name": "Михаил Козадой",
    "value": 600
   },
   {
-   "name": "Михаил Козадой",
+   "name": "Немощь",
    "value": 600
   },
   {
@@ -359,34 +613,34 @@
    "value": 400
   },
   {
-   "name": "Кристина А",
+   "name": "grooveman",
    "value": 400
   },
   {
-   "name": "Лиза Арц",
+   "name": "Кристина А",
    "value": 400
   }
  ],
  "rating_before": [
   {
    "name": "Богдан А",
-   "rating": 1661,
-   "attendance": 52
+   "rating": 1718,
+   "attendance": 53
   },
   {
    "name": "Семён Ануфриев",
    "rating": 1566,
-   "attendance": 42
+   "attendance": 43
   },
   {
    "name": "Полина Матыцына",
-   "rating": 1299,
-   "attendance": 42
+   "rating": 1303,
+   "attendance": 43
   },
   {
    "name": "Егор АА 11",
-   "rating": 1288,
-   "attendance": 44
+   "rating": 1302,
+   "attendance": 45
   },
   {
    "name": "Jane 007",
@@ -396,7 +650,7 @@
   {
    "name": "Шурик Шилкин",
    "rating": 1255,
-   "attendance": 52
+   "attendance": 53
   },
   {
    "name": "Никита Зейн",
@@ -415,43 +669,43 @@
   },
   {
    "name": "Ирина Ага",
+   "rating": 1213,
+   "attendance": 28
+  },
+  {
+   "name": "Артём SUB",
    "rating": 1205,
-   "attendance": 27
+   "attendance": 28
+  },
+  {
+   "name": "Немощь",
+   "rating": 1173,
+   "attendance": 25
   },
   {
    "name": "Михаил Козадой",
    "rating": 1119,
-   "attendance": 36
+   "attendance": 37
   },
   {
-   "name": "Артём SUB",
-   "rating": 1094,
-   "attendance": 27
+   "name": "Саша Коч",
+   "rating": 1092,
+   "attendance": 36
   },
   {
    "name": "Coach krotovski",
    "rating": 1079,
-   "attendance": 23
-  },
-  {
-   "name": "Саша Коч",
-   "rating": 1063,
-   "attendance": 35
-  },
-  {
-   "name": "Немощь",
-   "rating": 1037,
    "attendance": 24
   },
   {
    "name": "Макар Аве",
    "rating": 937,
-   "attendance": 35
+   "attendance": 36
   },
   {
    "name": "Соня Серж",
    "rating": 930,
-   "attendance": 38
+   "attendance": 39
   },
   {
    "name": "Егор Вино",
@@ -464,19 +718,19 @@
    "attendance": 28
   },
   {
+   "name": "Лиза Арц",
+   "rating": 839,
+   "attendance": 15
+  },
+  {
    "name": "grooveman",
    "rating": 830,
    "attendance": 17
   },
   {
    "name": "муся",
-   "rating": 823,
-   "attendance": 18
-  },
-  {
-   "name": "Лиза Арц",
-   "rating": 792,
-   "attendance": 14
+   "rating": 827,
+   "attendance": 19
   },
   {
    "name": "Даша Хромова",
@@ -485,8 +739,8 @@
   },
   {
    "name": "Robert Юниксфактёр",
-   "rating": 736,
-   "attendance": 16
+   "rating": 747,
+   "attendance": 17
   },
   {
    "name": "Максим Spy",
@@ -496,7 +750,7 @@
   {
    "name": "Неопознанный утконос",
    "rating": 728,
-   "attendance": 17
+   "attendance": 18
   },
   {
    "name": "Влад Владшток",
@@ -512,6 +766,11 @@
    "name": "Сергей Ман",
    "rating": 651,
    "attendance": 13
+  },
+  {
+   "name": "Евгений Ц",
+   "rating": 615,
+   "attendance": 15
   },
   {
    "name": "Дмитрий Ник",
@@ -531,12 +790,7 @@
   {
    "name": "Аня Жук",
    "rating": 571,
-   "attendance": 12
-  },
-  {
-   "name": "Евгений Ц",
-   "rating": 559,
-   "attendance": 14
+   "attendance": 13
   },
   {
    "name": "Стас ISK",
@@ -546,7 +800,12 @@
   {
    "name": "Кирилл Лед",
    "rating": 553,
-   "attendance": 12
+   "attendance": 13
+  },
+  {
+   "name": "Том",
+   "rating": 530,
+   "attendance": 23
   },
   {
    "name": "Надя Жб",
@@ -554,14 +813,14 @@
    "attendance": 15
   },
   {
+   "name": "Федор К",
+   "rating": 517,
+   "attendance": 12
+  },
+  {
    "name": "Серж",
    "rating": 503,
    "attendance": 10
-  },
-  {
-   "name": "Том",
-   "rating": 501,
-   "attendance": 22
   },
   {
    "name": "Вова Гриненко",
@@ -569,14 +828,14 @@
    "attendance": 11
   },
   {
+   "name": "Надя Котик",
+   "rating": 489,
+   "attendance": 10
+  },
+  {
    "name": "Свидетель",
    "rating": 484,
    "attendance": 11
-  },
-  {
-   "name": "Надя Котик",
-   "rating": 471,
-   "attendance": 9
   },
   {
    "name": "Настя К",
@@ -589,14 +848,14 @@
    "attendance": 8
   },
   {
-   "name": "Петя Пётр",
-   "rating": 450,
-   "attendance": 9
-  },
-  {
    "name": "Леонид П",
    "rating": 450,
    "attendance": 8
+  },
+  {
+   "name": "Петя Пётр",
+   "rating": 450,
+   "attendance": 9
   },
   {
    "name": "Александр Будда",
@@ -610,7 +869,12 @@
   },
   {
    "name": "Соня Новикова",
-   "rating": 409,
+   "rating": 436,
+   "attendance": 10
+  },
+  {
+   "name": "Екатерина С",
+   "rating": 405,
    "attendance": 9
   },
   {
@@ -619,19 +883,9 @@
    "attendance": 8
   },
   {
-   "name": "Федор К",
-   "rating": 396,
-   "attendance": 11
-  },
-  {
    "name": "Андрей Фломастер",
    "rating": 384,
    "attendance": 14
-  },
-  {
-   "name": "Екатерина С",
-   "rating": 381,
-   "attendance": 8
   },
   {
    "name": "Петя Федоров",
@@ -704,9 +958,19 @@
    "attendance": 3
   },
   {
+   "name": "Зеньята",
+   "rating": 182,
+   "attendance": 6
+  },
+  {
    "name": "Роман Егоров",
    "rating": 179,
    "attendance": 5
+  },
+  {
+   "name": "Настя Кудрявая",
+   "rating": 178,
+   "attendance": 4
   },
   {
    "name": "Никита Yellow",
@@ -719,6 +983,11 @@
    "attendance": 3
   },
   {
+   "name": "Наташа Бонд",
+   "rating": 162,
+   "attendance": 5
+  },
+  {
    "name": "Алёна Ф",
    "rating": 155,
    "attendance": 2
@@ -727,21 +996,6 @@
    "name": "Андрей Морфиус",
    "rating": 139,
    "attendance": 5
-  },
-  {
-   "name": "Зеньята",
-   "rating": 135,
-   "attendance": 5
-  },
-  {
-   "name": "Наташа Бонд",
-   "rating": 130,
-   "attendance": 4
-  },
-  {
-   "name": "Настя Кудрявая",
-   "rating": 126,
-   "attendance": 3
   },
   {
    "name": "Арзу",
@@ -819,6 +1073,11 @@
    "attendance": 1
   },
   {
+   "name": "Денис Дон",
+   "rating": 90,
+   "attendance": 2
+  },
+  {
    "name": "Андрей Пот",
    "rating": 89,
    "attendance": 3
@@ -894,11 +1153,6 @@
    "attendance": 2
   },
   {
-   "name": "Денис Дон",
-   "rating": 70,
-   "attendance": 1
-  },
-  {
    "name": "Разаман Рах",
    "rating": 70,
    "attendance": 1
@@ -934,6 +1188,11 @@
    "attendance": 1
   },
   {
+   "name": "Глеб Витязь",
+   "rating": 62,
+   "attendance": 2
+  },
+  {
    "name": "Инна Шашкина",
    "rating": 62,
    "attendance": 3
@@ -959,14 +1218,19 @@
    "attendance": 1
   },
   {
+   "name": "Влад Пив",
+   "rating": 59,
+   "attendance": 1
+  },
+  {
    "name": "Катя Берг",
    "rating": 59,
    "attendance": 2
   },
   {
-   "name": "Влад Пив",
-   "rating": 59,
-   "attendance": 1
+   "name": "Настя Буд",
+   "rating": 58,
+   "attendance": 2
   },
   {
    "name": "Михаил Крю",
@@ -989,18 +1253,13 @@
    "attendance": 1
   },
   {
-   "name": "Таня Т",
-   "rating": 56,
-   "attendance": 2
-  },
-  {
    "name": "Ся Ся",
    "rating": 56,
    "attendance": 1
   },
   {
-   "name": "Иван Грозный",
-   "rating": 55,
+   "name": "Таня Т",
+   "rating": 56,
    "attendance": 2
   },
   {
@@ -1009,13 +1268,33 @@
    "attendance": 1
   },
   {
+   "name": "Иван Грозный",
+   "rating": 55,
+   "attendance": 2
+  },
+  {
+   "name": "Макс Гема",
+   "rating": 54,
+   "attendance": 2
+  },
+  {
+   "name": "Марсель",
+   "rating": 53,
+   "attendance": 1
+  },
+  {
+   "name": "Радмир Г",
+   "rating": 53,
+   "attendance": 1
+  },
+  {
    "name": "Эльджан",
    "rating": 53,
    "attendance": 2
   },
   {
-   "name": "Радмир Г",
-   "rating": 53,
+   "name": "Оля М",
+   "rating": 49,
    "attendance": 1
   },
   {
@@ -1034,14 +1313,14 @@
    "attendance": 2
   },
   {
-   "name": "Соня Кур",
-   "rating": 46,
-   "attendance": 2
-  },
-  {
    "name": "SvetLana M",
    "rating": 46,
    "attendance": 1
+  },
+  {
+   "name": "Соня Кур",
+   "rating": 46,
+   "attendance": 2
   },
   {
    "name": "Алина Исм",
@@ -1051,6 +1330,11 @@
   {
    "name": "Саша Токарев",
    "rating": 44,
+   "attendance": 1
+  },
+  {
+   "name": "Иван",
+   "rating": 43,
    "attendance": 1
   },
   {
@@ -1089,12 +1373,12 @@
    "attendance": 1
   },
   {
-   "name": "ая?",
-   "rating": 36,
+   "name": "Александра К",
+   "rating": 37,
    "attendance": 1
   },
   {
-   "name": "Настя Буд",
+   "name": "ая?",
    "rating": 36,
    "attendance": 1
   },
@@ -1204,11 +1488,6 @@
    "attendance": 1
   },
   {
-   "name": "Макс Гема",
-   "rating": 29,
-   "attendance": 1
-  },
-  {
    "name": "Татьяна Gorman",
    "rating": 29,
    "attendance": 1
@@ -1269,6 +1548,11 @@
    "attendance": 1
   },
   {
+   "name": "Алехан",
+   "rating": 26,
+   "attendance": 1
+  },
+  {
    "name": "Анастасия Ильина",
    "rating": 26,
    "attendance": 1
@@ -1286,11 +1570,6 @@
   {
    "name": "Никита Башкин",
    "rating": 25,
-   "attendance": 1
-  },
-  {
-   "name": "Глеб Витязь",
-   "rating": 24,
    "attendance": 1
   },
   {
@@ -1399,6 +1678,11 @@
    "attendance": 1
   },
   {
+   "name": "Лера С",
+   "rating": 19,
+   "attendance": 1
+  },
+  {
    "name": "Ксюша Пок",
    "rating": 19,
    "attendance": 1
@@ -1416,6 +1700,11 @@
   {
    "name": "Слава П",
    "rating": 19,
+   "attendance": 1
+  },
+  {
+   "name": "Расул",
+   "rating": 18,
    "attendance": 1
   },
   {
@@ -1450,162 +1739,150 @@
   }
  ],
  "rating_add": {
-  "1": [
+  "2": [
    {
-    "name": "Coach krotovski",
-    "addition": 0
-   },
-   {
-    "name": "Robert Юниксфактёр",
-    "addition": 11
-   },
-   {
-    "name": "Александра К",
-    "addition": 37
-   },
-   {
-    "name": "Алехан",
-    "addition": 26
+    "name": "grooveman",
+    "addition": 63
    },
    {
     "name": "Аня Жук",
-    "addition": 0
+    "addition": 10
    },
    {
     "name": "Артём SUB",
-    "addition": 111
+    "addition": 0
+   },
+   {
+    "name": "Бенси",
+    "addition": 33
    },
    {
     "name": "Богдан А",
-    "addition": 57
+    "addition": 0
+   },
+   {
+    "name": "Вадим Константинов",
+    "addition": 104
    },
    {
     "name": "Глеб Витязь",
-    "addition": 38
+    "addition": 25
+   },
+   {
+    "name": "Глеб Макеев",
+    "addition": 62
    },
    {
     "name": "Денис Дон",
-    "addition": 20
-   },
-   {
-    "name": "Евгений Ц",
-    "addition": 56
-   },
-   {
-    "name": "Егор АА 11",
-    "addition": 14
-   },
-   {
-    "name": "Екатерина С",
-    "addition": 24
-   },
-   {
-    "name": "Зеньята",
-    "addition": 47
-   },
-   {
-    "name": "Иван",
     "addition": 43
    },
    {
+    "name": "Евгений Ц",
+    "addition": 109
+   },
+   {
     "name": "Ирина Ага",
-    "addition": 8
+    "addition": 0
    },
    {
     "name": "Кирилл Лед",
     "addition": 0
    },
    {
-    "name": "Лера С",
-    "addition": 19
-   },
-   {
-    "name": "Лиза Арц",
-    "addition": 47
-   },
-   {
     "name": "Макар Аве",
     "addition": 0
    },
    {
-    "name": "Макс Гема",
-    "addition": 25
+    "name": "Мария Павлова",
+    "addition": 44
    },
    {
     "name": "Марсель",
-    "addition": 53
+    "addition": 31
+   },
+   {
+    "name": "Матвей Пригожий",
+    "addition": 0
    },
    {
     "name": "Михаил Козадой",
-    "addition": 0
+    "addition": 64
    },
    {
-    "name": "муся",
-    "addition": 4
+    "name": "Михаил Наб",
+    "addition": 59
    },
    {
     "name": "Надя Котик",
-    "addition": 18
+    "addition": 47
+   },
+   {
+    "name": "Настя Pas",
+    "addition": 26
    },
    {
     "name": "Настя Буд",
-    "addition": 22
+    "addition": 72
    },
    {
     "name": "Настя Кудрявая",
-    "addition": 52
-   },
-   {
-    "name": "Наташа Бонд",
-    "addition": 32
+    "addition": 42
    },
    {
     "name": "Немощь",
-    "addition": 136
-   },
-   {
-    "name": "Неопознанный утконос",
     "addition": 0
    },
    {
-    "name": "Оля М",
-    "addition": 49
+    "name": "Никита Караксик",
+    "addition": 32
+   },
+   {
+    "name": "Никита Никарагуа",
+    "addition": 26
+   },
+   {
+    "name": "Петя Пётр",
+    "addition": 41
    },
    {
     "name": "Полина Матыцына",
-    "addition": 4
-   },
-   {
-    "name": "Расул",
-    "addition": 18
+    "addition": 0
    },
    {
     "name": "Саша Коч",
-    "addition": 29
+    "addition": 0
    },
    {
     "name": "Семён Ануфриев",
     "addition": 0
    },
    {
-    "name": "Соня Новикова",
-    "addition": 27
+    "name": "Сергей Ш",
+    "addition": 64
    },
    {
     "name": "Соня Серж",
     "addition": 0
    },
    {
+    "name": "Стас ISK",
+    "addition": 0
+   },
+   {
     "name": "Том",
-    "addition": 29
+    "addition": 139
    },
    {
     "name": "Федор К",
-    "addition": 121
+    "addition": 3
    },
    {
     "name": "Шурик Шилкин",
     "addition": 0
+   },
+   {
+    "name": "Юрий Белый",
+    "addition": 56
    }
   ]
  }
