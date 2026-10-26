@@ -26,7 +26,14 @@
   /* ---------- фильтры и контексты данных ---------- */
   var PA = D.players;                           // все данные игроков (без фильтров)
   var flt = { from: 0, to: T.length - 1, incl: false };
-  try { var sv = JSON.parse(localStorage.getItem('np_flt3') || 'null'); if (sv && sv.from <= sv.to && sv.to < T.length) flt = sv; } catch (e) {}
+  try {
+    var sv = JSON.parse(localStorage.getItem('np_flt3') || 'null');
+    if (sv) {   // период хранится по id турниров: новые турниры не должны выпадать из фильтра «до конца»
+      var idx = function (id, d) { for (var i = 0; i < T.length; i++) if (T[i].id === id) return i; return d; };
+      var f0 = sv.fid ? idx(sv.fid, sv.from) : sv.from, t0 = (sv.end || (sv.end === undefined && sv.to === T.length - 2)) ? T.length - 1 : (sv.tid ? idx(sv.tid, sv.to) : sv.to);
+      if (f0 <= t0 && t0 < T.length) flt = { from: f0, to: t0, incl: !!sv.incl };
+    }
+  } catch (e) {}
   var TA, E, ES, stackTs, comebacks, chokes, PS, AW, P, CA;
   function buildCtx(tl) {
     var c = { tl: tl, E: [], P: {} };
@@ -49,7 +56,7 @@
   }
   function useCtx(c) { E = c.E; ES = c.ES; stackTs = c.stackTs; comebacks = c.comebacks; chokes = c.chokes; PS = c.PS; AW = c.AW; P = c.P; TA = c.tl; }
   function applyFilter() { var tl = T.filter(function (t, i) { return i >= flt.from && i <= flt.to && (flt.incl || !t.nonstandard); }); useCtx(buildCtx(tl)); renderFilterUI(); }
-  function saveFilter() { try { localStorage.setItem('np_flt3', JSON.stringify(flt)); } catch (e) {} }
+  function saveFilter() { try { localStorage.setItem('np_flt3', JSON.stringify({ from: flt.from, to: flt.to, incl: flt.incl, fid: T[flt.from] && T[flt.from].id, tid: T[flt.to] && T[flt.to].id, end: flt.to === T.length - 1 })); } catch (e) {} }
   function computeAwards(c) {
     var PS = c.PS, P = c.P;
     var kings = PS.filter(function (s) { return s.shortN >= 3; }).sort(function (a, b) { return b.shortAvgRel - a.shortAvgRel; }).slice(0, 3);
