@@ -207,7 +207,7 @@ F25META = {
     'TuzVesny': ('TV25', 'Туз Весны', None), 'LR': ('LR25', '2-3', 2000), 'Avto': ('AV25', '4-2', 2000),
     'FilAivi': ('FA25', '5-2', 2000), 'Dv26': ('D625', '2-6', 2000), 'Beer': ('BR25', '2-7', 2600),
     'Mario': ('MR25', '2-8', 2100), 'Banany': ('BN25', '2-9', 2000), 'Doyl': ('DB25', '10-2', 2000),
-    'J2': ('J225', 'J-2', 2000), 'Sat2025': ('ST25', 'Сателлит', None), 'FF2025': ('FF25', 'ФФ-2025', None),
+    'J2': ('J225', 'J-2', 2000), 'Sat2025': ('ST25', 'Сателлит', None), 'FF2025': ('FF25', 'ФФ-2025', None), 'TuzOseni': ('TO26', 'Туз Осени', None),
 }
 ALIAS25 = {'Богдан Анц': 'Богдан А', 'Богдан Анциферов': 'Богдан А', 'Саша Тяж': 'Саша Тяжелов', 'Асхат': 'grooveman',
            'Асхат Суханбердин': 'grooveman', 'Руфат Макиато': 'Руф', 'Владибир': 'Владимир Vladeebeer',
@@ -256,7 +256,7 @@ def build_2025(notes, keep=None):
         rows = []
         for i, n in enumerate(pl, 1):
             rows.append(dict(name=n, place=i, points=None, visits=None, stack=(st.get(n, base) if has else None), days=[]))
-        t = dict(nonstandard=False, id=tid, title=meta.get('title', key), short=short, year=2025, final_date=meta.get('final'),
+        t = dict(nonstandard=False, id=tid, title=meta.get('title', key), short=short, year=int(meta.get('final', '.2025').split('.')[-1]), final_date=meta.get('final'),
                  flag=None, base=base, stack_available=has, days=[], finalists=len(rows), rating_event=None, rows=rows, src=meta.get('src'))
         if meta.get('oneday'): t['flag'] = 'Однодневный турнир: все стартуют с равным стеком, доступны только места.'
         if meta.get('partial'): t['flag'] = (t['flag'] or '') + ' Опубликованы только места 1–6 из 20 участников.'
