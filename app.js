@@ -238,8 +238,16 @@
   var curT = null;
   function pTournaments(id) {
     var t = T.filter(function (x) { return x.id === id; })[0] || T[T.length - 1];
-    var h = '<h1>Турниры</h1><div class="chips">' + T.map(function (x) { return '<button class="chip' + (x.id === t.id ? ' on' : '') + '" data-id="' + x.id + '">' + esc(x.short) + '</button>'; }).join('') + '</div>';
-    h += '<h2 style="margin-top:6px">' + esc(t.title) + ' <span class="tag">финал ' + esc(t.final_date || '') + '</span><span class="tag">' + t.finalists + ' финалистов</span></h2>' + (t.hidden ? '<p class="note">Показаны игроки, которые играют и в 2026 году: ' + t.rows.length + ' из ' + t.finalists + '. Остальные скрыты, чтобы не засорять статистику; места и ранги — по полному полю.</p>' : '');
+    var years = []; T.forEach(function (x) { if (years.indexOf(x.year) < 0) years.push(x.year); }); years.sort(function (p, q) { return q - p; });
+    var h = '<h1>Турниры</h1><div class="tgroups">' + years.map(function (y) {
+      var list = T.filter(function (x) { return x.year === y; });
+      return '<div class="tg"><div class="tgy"><b>' + y + '</b><span>' + list.length + ' ' + (list.length % 10 === 1 && list.length !== 11 ? 'турнир' : ([2, 3, 4].indexOf(list.length % 10) >= 0 && (list.length < 10 || list.length > 20) ? 'турнира' : 'турниров')) + '</span></div><div class="chips">' + list.map(function (x) {
+        var one = !x.days.length && !x.stack_available, dd = (x.final_date || '').split('.').slice(0, 2).join('.');
+        return '<button class="chip tch' + (x.id === t.id ? ' on' : '') + (x.nonstandard ? ' ns' : '') + '" data-id="' + x.id + '" title="' + esc(x.title) + '"><b>' + (one ? '🃏 ' : '') + esc(x.short) + (x.nonstandard ? ' ⚠' : '') + '</b><small>' + esc(dd) + '</small></button>';
+      }).join('') + '</div></div>';
+    }).join('') + '</div><div class="legend" style="margin:-4px 0 8px"><span>🃏 однодневный турнир (только места)</span><span>⚠ нестандартный формат</span></div>';
+    var tw = (t.top || t.rows || []).filter(function (r) { return r.place === 1; })[0];
+    h += '<h2 style="margin-top:6px">' + esc(t.title) + ' <span class="tag">финал ' + esc(t.final_date || '') + '</span><span class="tag">' + t.finalists + ' финалистов</span>' + (tw ? '<span class="tag">🏆 ' + esc(disp(tw.name)) + '</span>' : '') + '</h2>' + (t.hidden ? '<p class="note">Показаны игроки, которые играют и в 2026 году: ' + t.rows.length + ' из ' + t.finalists + '. Остальные скрыты, чтобы не засорять статистику; места и ранги — по полному полю.</p>' : '');
     if (t.flag) h += '<div class="flag">⚠ ' + esc(t.flag) + '</div>';
     if (t.stack_available) {
       h += '<div class="grid g4" style="margin:10px 0">' + kpi(esc(t.chip_leader.name), 'чиплидер — финишировал ' + t.chip_leader.place + '-м') + kpi(esc(t.winner.name), 'победитель — стартовал ' + t.winner.stack_rank + '-м по стеку') +

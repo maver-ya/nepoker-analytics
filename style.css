@@ -557,3 +557,21 @@ td.l a.pa .av{margin-right:0}
   nav{order:10;flex:1 1 100%}
   .gs{flex:1 1 150px;max-width:280px;margin-left:auto}
 }
+
+/* турниры: группы по годам */
+.tgroups{display:grid;gap:10px;margin:8px 0 6px}
+.tg{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.tgy b{display:block;font-size:24px;line-height:1.1;color:var(--head)}
+.tgy span{font-size:12px;color:var(--mute)}
+.tg .chips{margin:0}
+.chip.tch{display:flex;flex-direction:column;align-items:center;border-radius:10px;padding:4px 10px;line-height:1.2}
+.chip.tch b{font-weight:600;font-size:14px}
+.chip.tch small{font-size:11px;opacity:.7}
+.chip.tch.ns{border-style:dashed}
+.chip.tch.on small{opacity:.9}
+@media (max-width:640px){
+  .tg{grid-template-columns:1fr;gap:6px;padding:8px 12px}
+  .tgy{display:flex;align-items:baseline;gap:8px}
+  .tgy b{font-size:19px}
+  .tg .chips{margin:0 -12px;padding:2px 12px 4px}
+}
