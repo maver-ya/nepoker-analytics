@@ -575,3 +575,23 @@ td.l a.pa .av{margin-right:0}
   .tgy b{font-size:19px}
   .tg .chips{margin:0 -12px;padding:2px 12px 4px}
 }
+
+/* что если, дуэль, посещаемость */
+.whatif{padding:12px 14px}
+.wil{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-weight:600}
+.wil input{width:96px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:16px}
+.wip{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.wi-big{font-size:26px;font-weight:800;color:var(--head)}
+.wi-big span{color:var(--mute);font-weight:600}
+.wi-big em{font-style:normal;font-size:16px;color:var(--mute);margin-left:6px}
+.wi-big em.pos{color:var(--good)}
+.duel{padding:12px 14px;margin:12px 0}
+.dl-head{display:flex;justify-content:space-between;gap:10px;font-weight:700;margin-bottom:6px}
+.dn.a{color:var(--green)}.dn.b{color:var(--gold);text-align:right}
+.dbar{display:flex;height:28px;border-radius:8px;overflow:hidden;background:var(--soft)}
+.dbar i{display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:700;font-size:14px;min-width:0;color:#fff}
+.dbar i.a{background:var(--green)}.dbar i.t{background:var(--mute)}.dbar i.b{background:var(--gold);color:#1c2622}
+.dstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.dstats div{background:var(--soft);border-radius:10px;padding:8px 10px}
+.dstats b{display:block;font-size:20px;color:var(--head)}
+.dstats span{font-size:12px;color:var(--mute)}

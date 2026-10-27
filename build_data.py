@@ -204,11 +204,11 @@ def spearman(a, b):
 # ---------- финалы 2025 года: восстановлены вручную по картинкам таблиц из чата клуба ----------
 F25META = {
     'JJ': ('JJ25', 'JJ', 2100), 'DnD': ('DD25', 'D&D', 2100), 'KK': ('KK25', 'КК', 2100), 'AA': ('AA25', 'АА', 3100),
-    'TuzVesny': ('TV25', 'Туз Весны', None), 'LR': ('LR25', '2-3', 2000), 'Avto': ('AV25', '4-2', 2000),
+    'TuzVesny': ('TV25', 'Туз Весны 25', None), 'LR': ('LR25', '2-3', 2000), 'Avto': ('AV25', '4-2', 2000),
     'FilAivi': ('FA25', '5-2', 2000), 'Dv26': ('D625', '2-6', 2000), 'Beer': ('BR25', '2-7', 2600),
     'Mario': ('MR25', '2-8', 2100), 'Banany': ('BN25', '2-9', 2000), 'Doyl': ('DB25', '10-2', 2000),
     'J2': ('J225', 'J-2', 2000), 'Sat2025': ('ST25', 'Сателлит', None), 'FF2025': ('FF25', 'ФФ-2025', None), 'TuzOseni': ('TO26', 'Туз Осени', None),
-    'TuzVesny26': ('TV26', 'Туз Весны', None), 'TuzLeta26': ('TL26', 'Туз Лета', None),
+    'TuzVesny26': ('TV26', 'Туз Весны 26', None), 'TuzLeta26': ('TL26', 'Туз Лета', None),
 }
 ALIAS25 = {'Богдан Анц': 'Богдан А', 'Богдан Анциферов': 'Богдан А', 'Саша Тяж': 'Саша Тяжелов', 'Асхат': 'grooveman',
            'Асхат Суханбердин': 'grooveman', 'Руфат Макиато': 'Руф', 'Владибир': 'Владимир Vladeebeer',
@@ -384,6 +384,47 @@ def build_interseason(result, pl, archive=None):
         result['checks'].append(dict(level='info', text='Рейтинг учитывает межсезонку: прирост рейтинга после каждого дня взят с сайта результатов (fetch_site.py) и добавляется нарастающим итогом.'))
     if cur_series:
         result['checks'].append(dict(level='info', text=f"Текущая межсезонка загружена с сайта результатов ({cur_series['source']}): дней с данными {len(cur_series['days'])} из {cur_series.get('planned_days', '?')}."))
+
+
+def build_attendance(result):
+    """Посещаемость: матрица «игрок × событие» с листа «Итоги» (отметка в ячейке = пришёл)."""
+    wb = openpyxl.load_workbook(HIST, data_only=True)
+    ws = wb['Итоги']
+    last = max(c for c in range(9, ws.max_column + 1) if ws.cell(2, c).value)
+    people = []
+    for r in range(3, ws.max_row + 1):
+        nm = ws.cell(r, 2).value
+        if nm: people.append((r, _norm_name(nm)))
+    events, year = [], None
+    for c in range(9, last + 1):
+        year = ws.cell(1, c).value or year
+        name = re.sub(r'\s+', ' ', str(ws.cell(2, c).value)).strip()
+        if 'Дейзи' in name: year = 2026     # в шапке листа нет отметки 2026 года: он начинается с Q-2
+        name = re.sub(r'(20\d\d)2$', lambda m: m.group(1), name)
+        low = name.lower()
+        kind = 'inter' if 'межсезо' in low else ('oneday' if re.search(r'(^|\s)(туз|туза)\s|сателлит|финал финалист|однодневн|руки бога|^турнир циферблат', low) else 'tourn')
+        who = {nm for r, nm in people if ws.cell(r, c).value not in (None, '')}
+        events.append(dict(name=name, year=int(year), kind=kind, who=who))
+    seen, per = set(), {}
+    for e in events:
+        e['new'] = len(e['who'] - seen); seen |= e['who']
+        e['n'] = len(e['who'])
+        for nm in e['who']: per.setdefault(nm, []).append(events.index(e))
+    visits = {}
+    for r, nm in people:
+        v = ws.cell(r, 4).value
+        if isinstance(v, (int, float)): visits[nm] = visits.get(nm, 0) + int(v)
+    top = sorted(visits.items(), key=lambda x: -x[1])[:15]
+    years = {}
+    for e in events:
+        y = years.setdefault(e['year'], dict(events=0, sum=0, new=0, uniq=set()))
+        y['events'] += 1; y['sum'] += e['n']; y['new'] += e['new']; y['uniq'] |= e['who']
+    dist = [sum(1 for v in per.values() if lo <= len(v) <= hi) for lo, hi in ((1, 1), (2, 5), (6, 20), (21, 999))]
+    result['attendance'] = dict(
+        events=[dict(name=e['name'], year=e['year'], kind=e['kind'], n=e['n'], new=e['new']) for e in events],
+        years={str(y): dict(events=v['events'], avg=round(v['sum'] / v['events'], 1), new=v['new'], uniq=len(v['uniq'])) for y, v in years.items()},
+        top=[dict(name=n, visits=v, events=len(per.get(n, []))) for n, v in top],
+        dist=dist, total=len(per), last_event=events[-1]['name'])
 
 
 def data_checks(result, events, pl):
@@ -604,6 +645,7 @@ def main():
     npath = os.path.join(HERE, 'names.json')
     result['display'] = json.load(open(npath, encoding='utf-8')) if os.path.exists(npath) else {}
     build_interseason(result, pl)
+    build_attendance(result)
     data_checks(result, events, pl)
     import datetime as _dt
     result['generated'] = _dt.datetime.now().strftime('%d.%m.%Y %H:%M')

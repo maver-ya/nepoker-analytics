@@ -515,7 +515,7 @@
     h += '<h2>Рейтинг по событиям</h2><div class="legend"><span><i class="dot" style="background:var(--green)"></i>' + esc(disp(a)) + '</span><span><i class="dot" style="background:var(--gold)"></i>' + esc(disp(b)) + '</span></div><div class="chart">' + ratingMulti([{ p: pa, name: a, color: 'var(--green)' }, { p: pb, name: b, color: 'var(--gold)' }]) + '</div>' + capCompare(a, b, pa, pb);
     var common = pa.list.filter(function (x) { return pb.list.some(function (y) { return y.t === x.t; }); });
     h += '<h2>Очные встречи в финалах</h2>';
-    if (!common.length) h += '<p class="note">Эти игроки не встречались в финалах 2026 года.</p>';
+    if (!common.length) h += '<p class="note">Эти игроки не встречались в общих финалах.</p>';
     else {
       var aw = 0, bw = 0;
       var body = common.map(function (x) {
@@ -523,7 +523,7 @@
         aw += ca; bw += cb;
         return '<tr><td class="l"><a class="pl" href="#tournaments/' + x.t + '">' + esc(x.short) + '</a></td><td class="' + (ca ? 'win' : '') + '">' + x.place + '</td><td>' + (x.stack_rank == null ? '—' : x.stack_rank) + '</td><td class="' + (cb ? 'win' : '') + '">' + y.place + '</td><td>' + (y.stack_rank == null ? '—' : y.stack_rank) + '</td></tr>';
       }).join('');
-      h += '<p>Счёт по местам: <b>' + aw + ' : ' + bw + '</b> в пользу ' + (aw === bw ? 'никого (поровну)' : esc(disp(aw > bw ? a : b))) + ' (' + common.length + ' общих финалов).</p>';
+      h += duelCard(a, b, pa, pb, common);
       h += '<div class="tw"><table><thead><tr><th class="l">Турнир</th><th>' + esc(MOB ? cut(disp(a), 9) : disp(a) + ': место') + '</th><th>' + (MOB ? 'стек' : 'ранг стека') + '</th><th>' + esc(MOB ? cut(disp(b), 9) : disp(b) + ': место') + '</th><th>' + (MOB ? 'стек' : 'ранг стека') + '</th></tr></thead><tbody>' + body + '</tbody></table></div>';
     }
     return h;
@@ -818,6 +818,7 @@
     }
     h += '<div class="grid g2">' + (up ? need(up.rating_now - p.rating_now + 1, up, '▲') : '<div class="card"><h3>👑 Лидер рейтинга</h3><p style="margin:2px 0 0">' + (dn ? 'Отрыв от второго места: <b>' + (p.rating_now - dn.rating_now) + '</b> оч.' : '') + '</p></div>') + (dn ? need(p.rating_now - dn.rating_now, dn, '▼') : '') + '</div>';
     if (ri.full) h += cap('Порог зачёта — <b>' + ri.min + '</b> оч.: любой новый результат выше него вытеснит самый слабый из зачётных и прибавит разницу к рейтингу' + (ri.nextOut != null ? '. Сейчас первым «за бортом» стоит результат в ' + ri.nextOut + ' оч.' : '.'));
+    h += whatIfBlock(name);
     h += '<h2>Рейтинг по событиям</h2><div class="chart">' + ratingChart(p) + '</div>';
     h += '<h2>Результаты игрока</h2><p class="note">Подсвечены результаты, которые входят в рейтинг (' + K + ' лучших).</p><div class="tw tall"><table class="dtab rkt"><thead><tr><th>№</th><th class="l">Событие</th><th>Очки</th><th>Статус</th></tr></thead><tbody>';
     ri.idx.forEach(function (i, k) { var z = ri.s[i]; h += '<tr class="' + (ri.counted[i] ? 'in' : 'out') + '"><td>' + (k + 1) + '</td><td class="l">' + esc(eventLabel(z.e)) + '</td><td><b>' + z.pts + '</b></td><td>' + (ri.counted[i] ? '✓ в зачёте' : '— не в зачёте') + '</td></tr>'; });
@@ -976,11 +977,90 @@
     });
   }
 
+
+  /* ---------- калькулятор «что если» для рейтинга ---------- */
+  function whatIf(name, x) {
+    var p = PA[name], ri = ratingInfo(name), list = ratingList(), K = D.rating_top;
+    x = Math.max(0, Math.round(+x || 0));
+    var gain = ri.full ? Math.max(0, x - ri.min) : x, nr = p.rating_now + gain;
+    var others = list.filter(function (o) { return o.name !== name; });
+    var oldPlace = list.indexOf(p) + 1, newPlace = others.filter(function (o) { return o.rating_now > nr; }).length + 1;
+    var passed = others.filter(function (o) { return o.rating_now >= p.rating_now && o.rating_now <= nr && o.rating_now > p.rating_now; });
+    var weak = ri.full ? ri.s[ri.idx[K - 1]] : null;
+    var out = '<div class="wires"><div class="wi-big"><span>' + p.rating_now + '</span> → <b>' + nr + '</b> <em class="' + (gain > 0 ? 'pos' : '') + '">' + (gain > 0 ? '+' + gain : '±0') + '</em></div>' +
+      '<p style="margin:4px 0">Место в рейтинге: <b>' + oldPlace + '</b> → <b>' + newPlace + '</b>' + (newPlace < oldPlace ? ' 📈' : '') + '</p>';
+    if (!gain) out += '<p class="note" style="margin:0">Результат в ' + x + ' оч. не выше порога зачёта (' + ri.min + '): рейтинг не изменится.</p>';
+    else {
+      if (weak) out += '<p class="note" style="margin:0">Выпадет самый слабый зачётный результат: ' + weak.pts + ' оч. («' + esc(eventLabel(weak.e)) + '»).</p>';
+      if (passed.length) out += '<p style="margin:4px 0 0">Обгоняет: ' + passed.slice(-5).reverse().map(function (o) { return link(o.name) + ' (' + o.rating_now + ')'; }).join(', ') + '.</p>';
+    }
+    return out + '</div>';
+  }
+  function whatIfBlock(name) {
+    var ri = ratingInfo(name), presets = [ri.full ? ri.min : 50, 100, 150, 200, 250].filter(function (v, i, a) { return a.indexOf(v) === i; });
+    return '<h2>Что если…</h2><div class="card whatif"><label class="wil">Новый результат игрока, очков <input id="wi" type="number" min="0" max="500" step="1" value="' + presets[Math.min(2, presets.length - 1)] + '" data-name="' + esc(name) + '" inputmode="numeric"></label>' +
+      '<div class="wip">' + presets.map(function (v) { return '<button type="button" class="chip wiq" data-v="' + v + '">' + v + (ri.full && v === ri.min ? ' (порог)' : '') + '</button>'; }).join('') + '</div><div id="wires">' + whatIf(name, presets[Math.min(2, presets.length - 1)]) + '</div>' +
+      '<p class="note" style="margin:8px 0 0">Прикидка по текущей таблице: другие игроки не меняются. Очки за финал считаются как √(N·K)/√место, у отборочных дней они меньше.</p></div>';
+  }
+
+  /* ---------- дуэль двух игроков ---------- */
+  function duelCard(a, b, pa, pb, common) {
+    var aw = 0, bw = 0, tie = 0, sa = 0, sb = 0, best = { a: null, b: null };
+    common.forEach(function (x) {
+      var y = pb.list.filter(function (z) { return z.t === x.t; })[0], d = y.place - x.place;
+      if (d > 0) aw++; else if (d < 0) bw++; else tie++;
+      sa += x.place; sb += y.place;
+      if (d > 0 && (!best.a || d > best.a.d)) best.a = { d: d, t: x.short, p1: x.place, p2: y.place };
+      if (d < 0 && (!best.b || -d > best.b.d)) best.b = { d: -d, t: x.short, p1: y.place, p2: x.place };
+    });
+    var A = {}, B = {}, ea = 0, eb = 0; (pa.series || []).forEach(function (z) { if (z.pts > 0) A[z.e] = z.pts; }); (pb.series || []).forEach(function (z) { if (z.pts > 0) B[z.e] = z.pts; });
+    Object.keys(A).forEach(function (e) { if (B[e] != null) { if (A[e] > B[e]) ea++; else if (A[e] < B[e]) eb++; } });
+    var n = common.length, pc = function (v) { return Math.round(v / n * 100); };
+    var h = '<div class="card duel"><div class="dl-head"><span class="dn a">' + esc(disp(a)) + '</span><span class="dn b">' + esc(disp(b)) + '</span></div>' +
+      '<div class="dbar" role="img" aria-label="Счёт по общим финалам"><i class="a" style="width:' + pc(aw) + '%">' + (aw || '') + '</i><i class="t" style="width:' + pc(tie) + '%">' + (tie || '') + '</i><i class="b" style="width:' + pc(bw) + '%">' + (bw || '') + '</i></div>' +
+      '<p class="note" style="margin:4px 0 8px">Кто финишировал выше в общих финалах (' + n + '): ' + esc(disp(a)) + ' — ' + aw + ', ' + esc(disp(b)) + ' — ' + bw + (tie ? ', поровну ' + tie : '') + '.</p>' +
+      '<div class="dstats"><div><b>' + f1(sa / n) + '</b><span>среднее место ' + esc(cut(disp(a), 14)) + '</span></div><div><b>' + f1(sb / n) + '</b><span>среднее место ' + esc(cut(disp(b), 14)) + '</span></div>' +
+      ((ea + eb) ? '<div><b>' + ea + ' : ' + eb + '</b><span>события, где очков больше</span></div>' : '') + '</div>';
+    if (best.a || best.b) h += '<p class="note" style="margin:8px 0 0">' + (best.a ? 'Крупнейшая победа ' + esc(disp(a)) + ': ' + esc(best.a.t) + ' (' + best.a.p1 + '-е место против ' + best.a.p2 + '-го). ' : '') + (best.b ? 'Крупнейшая победа ' + esc(disp(b)) + ': ' + esc(best.b.t) + ' (' + best.b.p1 + '-е место против ' + best.b.p2 + '-го).' : '') + '</p>';
+    return h + '</div>';
+  }
+
+  /* ---------- посещаемость ---------- */
+  function visitsChart(ev) {
+    var W = MOB ? 400 : 760, H = MOB ? 230 : 270, L = MOB ? 30 : 38, R = 8, Tp = 12, B = 30, N = ev.length, mx = Math.ceil(Math.max.apply(null, ev.map(function (e) { return e.n; })) / 20) * 20;
+    var bw = (W - L - R) / N, y = function (v) { return Tp + (1 - v / mx) * (H - Tp - B); }, col = { tourn: 'var(--green)', oneday: 'var(--gold)', inter: 'var(--blue)' }, kn = { tourn: 'многодневный турнир', oneday: 'однодневный', inter: 'межсезонка' };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Число участников по событиям">';
+    for (var g = 0; g <= mx; g += 20) s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(g) + '" y2="' + y(g) + '" stroke="var(--line)"/><text class="mu" x="' + (L - 5) + '" y="' + (y(g) + 4) + '" text-anchor="end" font-size="11">' + g + '</text>';
+    var prev = null, yrStart = 0;
+    ev.forEach(function (e, i) {
+      var x = L + i * bw;
+      if (prev !== null && e.year !== prev) s += '<line x1="' + x + '" x2="' + x + '" y1="' + Tp + '" y2="' + (H - B + 6) + '" stroke="var(--mute)" stroke-dasharray="3 3" opacity=".6"/>';
+      if (e.year !== prev) { var cnt = ev.filter(function (z) { return z.year === e.year; }).length; s += '<text class="mu" x="' + (x + cnt * bw / 2) + '" y="' + (H - 10) + '" text-anchor="middle" font-size="12" font-weight="700">' + e.year + '</text>'; prev = e.year; }
+      s += '<rect x="' + (x + bw * .12) + '" y="' + y(e.n) + '" width="' + bw * .76 + '" height="' + (H - B - y(e.n)) + '" rx="1.5" fill="' + col[e.kind] + '" opacity=".88"><title>' + esc(e.name) + ' — ' + e.n + ' игроков, впервые пришли ' + e.new + ' (' + kn[e.kind] + ')</title></rect>';
+    });
+    return s + '</svg><div class="legend"><span><i class="dot" style="background:var(--green)"></i>многодневный турнир</span><span><i class="dot" style="background:var(--gold)"></i>однодневный</span><span><i class="dot" style="background:var(--blue)"></i>межсезонка</span></div>';
+  }
+  function pVisits() {
+    var A = D.attendance; if (!A) return '<h1>Посещаемость</h1><p class="note">Нет данных.</p>';
+    var ev = A.events, tot = ev.reduce(function (a, e) { return a + e.n; }, 0), rec = ev.slice().sort(function (x, y) { return y.n - x.n; })[0], yrs = Object.keys(A.years).sort();
+    var h = '<h1>Посещаемость</h1><p class="sub">Сколько игроков приходило на каждое событие клуба с августа 2023 года. Источник — отметки в таблице «Итоги»; последнее внесённое событие: «' + esc(A.last_event) + '».</p>';
+    h += '<div class="grid g4">' + kpi(ev.length, 'событий клуба') + kpi(f1(tot / ev.length), 'в среднем игроков на событие') + kpi(rec.n, 'рекорд: ' + esc(cut(rec.name, 28))) + kpi(A.total, 'разных игроков за всё время') + '</div>';
+    h += '<h2>Игроков на событии</h2><div class="chart">' + visitsChart(ev) + '</div>';
+    var y0 = A.years[yrs[0]], yl = A.years[yrs[yrs.length - 1]], y1 = A.years[yrs[yrs.length - 2]];
+    h += cap('Средний состав вырос с <b>' + f1(y0.avg) + '</b> игроков в ' + yrs[0] + ' до <b>' + f1(yl.avg) + '</b> в ' + yrs[yrs.length - 1] + '. Больше всего людей собирают межсезонки и многодневные турниры; однодневные Тузы заметно скромнее.');
+    h += '<h2>По годам</h2><div class="tw"><table><thead><tr><th class="l">Год</th><th>' + (MOB ? 'Событий' : 'Событий в году') + '</th><th>' + (MOB ? 'Ср. состав' : 'Средний состав') + '</th><th>' + (MOB ? 'Новых' : 'Впервые пришли') + '</th><th>' + (MOB ? 'Разных' : 'Разных игроков') + '</th></tr></thead><tbody>' + yrs.map(function (y) { var v = A.years[y]; return '<tr><td class="l"><b>' + y + '</b></td><td>' + v.events + '</td><td>' + f1(v.avg) + '</td><td>' + v.new + '</td><td>' + v.uniq + '</td></tr>'; }).join('') + '</tbody></table></div>';
+    var dn = ['1 событие', '2–5 событий', '6–20 событий', '21 и больше'];
+    h += '<h2>Сколько раз люди возвращаются</h2><div class="chart">' + hbars(A.dist.map(function (v, i) { return { label: dn[i], v: v, txt: v + ' чел. (' + Math.round(v / A.total * 100) + '%)', color: i === 0 ? 'var(--mute)' : (i === 3 ? 'var(--gold)' : 'var(--green)') }; })) + '</div>';
+    h += cap('Разово заходили <b>' + Math.round(A.dist[0] / A.total * 100) + '%</b> игроков, а ядро клуба (21+ событий) — <b>' + A.dist[3] + '</b> человек.');
+    h += '<h2>Самые частые гости</h2><div class="chart">' + hbars(A.top.slice(0, 12).map(function (x) { return { label: disp(x.name), v: x.visits, txt: x.visits + ' посещ. · ' + x.events + ' событий', color: 'var(--green)' }; })) + '</div><p class="note">Посещения — по счётчику в таблице «Итоги» (считаются игровые дни), события — число отметок в матрице.</p>';
+    return h;
+  }
+
   /* ---------- «Интересное»: номинации, метрики и охота в одном разделе ---------- */
   function pInteresting(sub, arg) {
-    var tabs = [['awards', 'Номинации'], ['metrics', 'Метрики стека'], ['hunt', 'Охота']];
+    var tabs = [['awards', 'Номинации'], ['metrics', 'Метрики стека'], ['hunt', 'Охота'], ['visits', 'Посещаемость']];
     var h = '<h1>Интересное</h1><div class="subtabs" role="tablist">' + tabs.map(function (x) { return '<a role="tab" class="' + (sub === x[0] ? 'on' : '') + '" href="#fun/' + x[0] + '">' + x[1] + '</a>'; }).join('') + '</div>';
-    var body = sub === 'metrics' ? pMetrics() : (sub === 'hunt' ? pHunt(arg) : pFun());
+    var body = sub === 'metrics' ? pMetrics() : (sub === 'hunt' ? pHunt(arg) : (sub === 'visits' ? pVisits() : pFun()));
     return h + body.replace(/^<h1>[^<]*<\/h1>/, '');
   }
 
@@ -997,7 +1077,7 @@
     if (tab === 'metrics' || tab === 'hunt') { parts = ['fun', tab].concat(parts.slice(1)); try { history.replaceState(null, '', '#' + parts.join('/')); } catch (e) {} tab = 'fun'; }
     var sub = tab === 'fun' ? (parts[1] || 'awards') : null, argRaw = tab === 'fun' ? parts[2] : parts[1], arg = argRaw ? decodeURIComponent(argRaw) : null;
     var pages = { overview: pOverview, tournaments: function () { return pTournaments(arg); }, players: function () { return pPlayers(arg); }, fun: function () { return pInteresting(sub, arg); }, rating: function () { return pRating(arg); }, fame: pFame, heat: pHeat, inter: function () { return pInter(arg); }, hunt: function () { return pHunt(arg); }, compare: function () { return pCompare(parts[1] ? decodeURIComponent(parts[1]) : null, parts[2] ? decodeURIComponent(parts[2]) : null); }, report: function () { return pReport(arg); }, data: pData };
-    var gated = tab === 'fun' && sub === 'hunt' ? '' : tab, needsData = { overview: 1, fun: 1 }, needsT = { overview: 1, fun: 1, heat: 1 };
+    var gated = tab === 'fun' && (sub === 'hunt' || sub === 'visits') ? '' : tab, needsData = { overview: 1, fun: 1 }, needsT = { overview: 1, fun: 1, heat: 1 };
     if ((needsT[gated] || (tab === 'players' && !arg)) && (!TA.length || (needsData[gated] && !ES.length))) {
       app.innerHTML = '<h1>Нет данных</h1>' + filterBar() + '<p class="note">В выбранном периоде нет турниров' + (TA.length ? ' с известными стеками' : '') + '. Расширьте период или включите нестандартные форматы.</p>';
       document.querySelectorAll('#nav a').forEach(function (x) { x.classList.toggle('on', x.dataset.t === tab); });
@@ -1016,6 +1096,7 @@
     if (keep !== true) window.scrollTo(0, 0);
   }
   document.addEventListener('input', function (ev) {
+    if (ev.target.id === 'wi') { document.getElementById('wires').innerHTML = whatIf(ev.target.dataset.name, ev.target.value); return; }
     var iid = ev.target.id; if (iid !== 'hq' && iid !== 'rq') return;
     if (iid === 'hq') heat.hq = ev.target.value; else rq = ev.target.value;
     var pos = ev.target.selectionStart; route(true);
@@ -1036,6 +1117,7 @@
   document.addEventListener('click', function (ev) {
     var itr = ev.target.closest('.chip.itr'); if (itr) { location.hash = '#inter/' + itr.dataset.id; return; }
     var hn = ev.target.closest('.chip.hnt'); if (hn) { location.hash = '#fun/hunt/' + hn.dataset.id; return; }
+    var wq = ev.target.closest('.wiq'); if (wq) { var wi = document.getElementById('wi'); wi.value = wq.dataset.v; document.getElementById('wires').innerHTML = whatIf(wi.dataset.name, wq.dataset.v); return; }
     var ppr = ev.target.closest('#pprint'); if (ppr) { var nm0 = decodeURIComponent((location.hash.split('/')[1] || '')), old = document.title; document.title = 'неПокер — ' + disp(nm0); window.print(); setTimeout(function () { document.title = old; }, 500); return; }
     var psh = ev.target.closest('#pshare'); if (psh) { doShare(decodeURIComponent(location.hash.split('/')[1] || ''), document.getElementById('pmsg')); return; }
     var rp = ev.target.closest('.chip.rpt'); if (rp) location.hash = '#report/' + rp.dataset.id;
@@ -1043,7 +1125,7 @@
     var cp = ev.target.closest('#repcopy'); if (cp) { var tx = document.getElementById('reptext').textContent, msg = document.getElementById('repmsg'); (navigator.clipboard ? navigator.clipboard.writeText(tx) : Promise.reject()).then(function () { msg.textContent = 'Скопировано'; }, function () { var r = document.createRange(); r.selectNodeContents(document.getElementById('reptext')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); msg.textContent = 'Текст выделен — нажмите Ctrl+C'; }); }
     var fy = ev.target.closest('.chip.fy'); if (fy) { var yy = fy.dataset.y; if (yy === 'all') { flt.from = 0; flt.to = T.length - 1; } else { var ix = []; T.forEach(function (t, i) { if (String(t.year) === yy) ix.push(i); }); if (ix.length) { flt.from = ix[0]; flt.to = ix[ix.length - 1]; } } saveFilter(); applyFilter(); route(true); return; }
     if (ev.target.id === 'freset') { flt = { from: 0, to: T.length - 1, incl: false }; saveFilter(); applyFilter(); route(true); return; }
-    var c = ev.target.closest('.chip:not(.rpt):not(.hnt):not(.itr)'); if (c && c.dataset.id) location.hash = '#tournaments/' + c.dataset.id;
+    var c = ev.target.closest('.chip:not(.rpt):not(.hnt):not(.itr):not(.wiq)'); if (c && c.dataset.id) location.hash = '#tournaments/' + c.dataset.id;
     var th = ev.target.closest('th.s'); if (th) { var k = th.dataset.k; if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === 'name' ? 1 : -1; } renderPT(); }
   });
   window.addEventListener('hashchange', function () { route(); });
