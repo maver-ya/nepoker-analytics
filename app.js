@@ -1036,14 +1036,14 @@
       var x = L + i * bw;
       if (prev !== null && e.year !== prev) s += '<line x1="' + x + '" x2="' + x + '" y1="' + Tp + '" y2="' + (H - B + 6) + '" stroke="var(--mute)" stroke-dasharray="3 3" opacity=".6"/>';
       if (e.year !== prev) { var cnt = ev.filter(function (z) { return z.year === e.year; }).length; s += '<text class="mu" x="' + (x + cnt * bw / 2) + '" y="' + (H - 10) + '" text-anchor="middle" font-size="12" font-weight="700">' + e.year + '</text>'; prev = e.year; }
-      s += '<rect x="' + (x + bw * .12) + '" y="' + y(e.n) + '" width="' + bw * .76 + '" height="' + (H - B - y(e.n)) + '" rx="1.5" fill="' + col[e.kind] + '" opacity=".88"><title>' + esc(e.name) + ' — ' + e.n + ' игроков, впервые пришли ' + e.new + ' (' + kn[e.kind] + ')</title></rect>';
+      s += '<rect x="' + (x + bw * .12) + '" y="' + y(e.n) + '" width="' + bw * .76 + '" height="' + (H - B - y(e.n)) + '" rx="1.5" fill="' + col[e.kind] + '" opacity="' + (e.extra ? '.55' : '.88') + '"' + (e.extra ? ' stroke="' + col[e.kind] + '" stroke-dasharray="3 2"' : '') + '><title>' + esc(e.name) + ' — ' + e.n + ' игроков, впервые пришли ' + e.new + ' (' + kn[e.kind] + ')</title></rect>';
     });
     return s + '</svg><div class="legend"><span><i class="dot" style="background:var(--green)"></i>многодневный турнир</span><span><i class="dot" style="background:var(--gold)"></i>однодневный</span><span><i class="dot" style="background:var(--blue)"></i>межсезонка</span></div>';
   }
   function pVisits() {
     var A = D.attendance; if (!A) return '<h1>Посещаемость</h1><p class="note">Нет данных.</p>';
     var ev = A.events, tot = ev.reduce(function (a, e) { return a + e.n; }, 0), rec = ev.slice().sort(function (x, y) { return y.n - x.n; })[0], yrs = Object.keys(A.years).sort();
-    var h = '<h1>Посещаемость</h1><p class="sub">Сколько игроков приходило на каждое событие клуба с августа 2023 года. Источник — отметки в таблице «Итоги»; последнее внесённое событие: «' + esc(A.last_event) + '».</p>';
+    var h = '<h1>Посещаемость</h1><p class="sub">Сколько игроков приходило на каждое событие клуба с августа 2023 года. Источник — отметки в таблице «Итоги» до события «' + esc(A.last_core) + '»' + (A.extra_n ? '; ' + A.extra_n + ' более новых событий (штриховка на графике) посчитаны по результатам на сайте — по списку игроков турнира или игровых дней межсезонки.' : '.') + '</p>';
     h += '<div class="grid g4">' + kpi(ev.length, 'событий клуба') + kpi(f1(tot / ev.length), 'в среднем игроков на событие') + kpi(rec.n, 'рекорд: ' + esc(cut(rec.name, 28))) + kpi(A.total, 'разных игроков за всё время') + '</div>';
     h += '<h2>Игроков на событии</h2><div class="chart">' + visitsChart(ev) + '</div>';
     var y0 = A.years[yrs[0]], yl = A.years[yrs[yrs.length - 1]], y1 = A.years[yrs[yrs.length - 2]];

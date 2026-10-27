@@ -419,12 +419,50 @@ def build_attendance(result):
     for e in events:
         y = years.setdefault(e['year'], dict(events=0, sum=0, new=0, uniq=set()))
         y['events'] += 1; y['sum'] += e['n']; y['new'] += e['new']; y['uniq'] |= e['who']
-    dist = [sum(1 for v in per.values() if lo <= len(v) <= hi) for lo, hi in ((1, 1), (2, 5), (6, 20), (21, 999))]
-    result['attendance'] = dict(
+    # граница таблицы: дата финала последнего внесённого турнира (дальше события берутся из результатов)
+    lastname = events[-1]['name'].lower()
+    cut = next((t['final_date'] for t in result['tournaments'] if t['title'].lower() in lastname or lastname in t['title'].lower()), None)
+    result['attendance_core'] = dict(
         events=[dict(name=e['name'], year=e['year'], kind=e['kind'], n=e['n'], new=e['new']) for e in events],
-        years={str(y): dict(events=v['events'], avg=round(v['sum'] / v['events'], 1), new=v['new'], uniq=len(v['uniq'])) for y, v in years.items()},
+        years={str(y): dict(events=v['events'], sum=v['sum'], new=v['new'], uniq=sorted(v['uniq'])) for y, v in years.items()},
         top=[dict(name=n, visits=v, events=len(per.get(n, []))) for n, v in top],
-        dist=dist, total=len(per), last_event=events[-1]['name'])
+        pc={n: len(v) for n, v in per.items()}, cutoff=cut)
+    attendance_extras(result)
+
+
+def attendance_extras(result):
+    """Достраивает посещаемость событиями после границы таблицы: однодневные турниры и межсезонки из результатов на сайте."""
+    import datetime as _d
+    core = result.get('attendance_core')
+    if not core: return
+    pd = lambda s: _d.datetime.strptime(s.strip(), '%d.%m.%Y')
+    cut = pd(core['cutoff']) if core.get('cutoff') else None
+    extra = []
+    if cut:
+        for t in result['tournaments']:
+            if t.get('final_date') and pd(t['final_date']) > cut and t.get('rows'):
+                one = not t.get('days') and not t.get('stack_available')
+                extra.append((pd(t['final_date']), dict(name=t['title'], kind='oneday' if one else 'tourn', who={r['name'] for r in t['rows']})))
+        for s in result.get('interseason', {}).get('series', []):
+            if s['days'] and pd(s['days'][0]['date']) > cut:
+                who = {_norm_name(p['name']) for d in s['days'] for p in d['players']}
+                extra.append((pd(s['days'][0]['date']), dict(name=s['title'], kind='inter', who=who)))
+    extra.sort(key=lambda x: x[0])
+    seen = set(core['pc']); pc = dict(core['pc'])
+    years = {y: dict(events=v['events'], sum=v['sum'], new=v['new'], uniq=set(v['uniq'])) for y, v in core['years'].items()}
+    events = [dict(e) for e in core['events']]
+    for d, e in extra:
+        n_new = len(e['who'] - seen); seen |= e['who']
+        for nm in e['who']: pc[nm] = pc.get(nm, 0) + 1
+        y = years.setdefault(str(d.year), dict(events=0, sum=0, new=0, uniq=set()))
+        y['events'] += 1; y['sum'] += len(e['who']); y['new'] += n_new; y['uniq'] |= e['who']
+        events.append(dict(name=e['name'], year=d.year, kind=e['kind'], n=len(e['who']), new=n_new, extra=True))
+    dist = [sum(1 for v in pc.values() if lo <= v <= hi) for lo, hi in ((1, 1), (2, 5), (6, 20), (21, 999))]
+    result['attendance'] = dict(
+        events=events,
+        years={y: dict(events=v['events'], avg=round(v['sum'] / v['events'], 1), new=v['new'], uniq=len(v['uniq'])) for y, v in years.items()},
+        top=core['top'], dist=dist, total=len(pc),
+        last_core=core['events'][-1]['name'], extra_n=len(extra))
 
 
 def data_checks(result, events, pl):

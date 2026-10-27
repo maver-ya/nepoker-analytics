@@ -23,6 +23,7 @@ def main():
     result['checks'] = [c for c in result['checks'] if not c['text'].startswith(('Рейтинг учитывает межсезонку', 'Текущая межсезонка', 'В текущей межсезонке', 'Рейтинг до межсезонки', 'Похожие ники', 'Нет данных о финальных стеках'))]
     archive = [s for s in result['interseason']['series'] if s.get('status') == 'завершена']
     bd.build_interseason(result, pl, archive)
+    bd.attendance_extras(result)
     bd.data_checks(result, {}, pl)
     result['generated'] = datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
     with open(P, 'w', encoding='utf-8') as fh:
