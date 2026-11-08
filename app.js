@@ -2,6 +2,9 @@
 (function () {
   'use strict';
   var D = window.NEPOKER, T = D.tournaments, P = D.players;
+  var liveTournaments = Object.values(D.live_tournaments || {}).filter(function (t) {
+    return !T.some(function (finished) { return finished.short === t.short && finished.year === t.year; });
+  });
   var DN = D.display || {}, disp = function (n) { return DN[n] || n; };
   var mq = window.matchMedia('(max-width: 640px)'), MOB = mq.matches;
   var cut = function (s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
@@ -183,6 +186,23 @@
     });
     return out + '</div>';
   }
+  function liveCard(t) {
+    return '<section class="card"><span class="eyebrow">' + esc(t.status) + '</span><h2>' +
+      esc(t.title) + '</h2><p class="sub">Финал ' + esc(t.final_date) +
+      '</p><a class="btn" href="#tournaments/' + encodeURIComponent(t.id) + '">Расписание и результаты дней</a></section>';
+  }
+  function liveDays(schedule) {
+    return Object.entries(schedule).map(function (entry) {
+      var day = entry[1], players = day.players || [];
+      return '<h3>День ' + esc(entry[0]) + ' · ' + esc(day.date) + '</h3>' +
+        (players.length ? '<div class="tw"><table><thead><tr><th>№</th><th class="l">Игрок</th><th>Итог</th></tr></thead><tbody>' +
+          players.map(function (p, i) {
+            return '<tr><td>' + (i + 1) + '</td><td class="l">' +
+              (D.players[p.name] ? plink(p.name) : esc(disp(p.name))) +
+              '</td><td>' + fmt(p.total) + '</td></tr>';
+          }).join('') + '</tbody></table></div>' : '<p class="note">Ожидаем результаты дня.</p>');
+    }).join('');
+  }
   function pOverview() {
     var leaderWins = stackTs.filter(function (t) { return t.chip_leader.place === 1; }).length;
     var avgLeader = mean(stackTs.map(function (t) { return t.chip_leader.place; }));
@@ -192,6 +212,7 @@
     var t = TA[TA.length - 1], rows = t.top || t.rows.slice(0, 3);
     var h = '<section class="hero"><span class="eyebrow">Последний турнир</span><h1>' + esc(t.title) + '</h1><p class="sub" style="margin:0">финал ' + esc(t.final_date || '') + ' · ' + t.finalists + ' финалистов</p>' + podium(rows) +
       '<div class="hero-links"><a class="btn" href="#tournaments/' + t.id + '">Результаты и график</a><a class="btn ghost" href="#report/' + t.id + '">Автоотчёт</a></div></section>';
+    h = liveTournaments.map(liveCard).join('') + h;
     h += filterBar();
     // лидеры рейтинга + межсезонка
     var lead = Object.keys(PA).filter(function (n) { return PA[n].rating_now; }).sort(function (x, y) { return PA[y].rating_now - PA[x].rating_now; }).slice(0, 5), mx = lead.length ? PA[lead[0]].rating_now : 1;
@@ -237,15 +258,17 @@
 
   var curT = null;
   function pTournaments(id) {
-    var t = T.filter(function (x) { return x.id === id; })[0] || T[T.length - 1];
-    var years = []; T.forEach(function (x) { if (years.indexOf(x.year) < 0) years.push(x.year); }); years.sort(function (p, q) { return q - p; });
+    var listed = T.concat(liveTournaments);
+    var t = listed.find(function (x) { return x.id === id; }) || listed[listed.length - 1];
+    var years = []; listed.forEach(function (x) { if (years.indexOf(x.year) < 0) years.push(x.year); }); years.sort(function (p, q) { return q - p; });
     var h = '<h1>Турниры</h1><div class="tgroups">' + years.map(function (y) {
-      var list = T.filter(function (x) { return x.year === y; });
+      var list = listed.filter(function (x) { return x.year === y; });
       return '<div class="tg"><div class="tgy"><b>' + y + '</b><span>' + list.length + ' ' + (list.length % 10 === 1 && list.length !== 11 ? 'турнир' : ([2, 3, 4].indexOf(list.length % 10) >= 0 && (list.length < 10 || list.length > 20) ? 'турнира' : 'турниров')) + '</span></div><div class="chips">' + list.map(function (x) {
-        var one = !x.days.length && !x.stack_available, dd = (x.final_date || '').split('.').slice(0, 2).join('.');
+        var one = !x.schedule && !x.live && !x.days.length && !x.stack_available, dd = (x.final_date || '').split('.').slice(0, 2).join('.');
         return '<button class="chip tch' + (x.id === t.id ? ' on' : '') + (x.nonstandard ? ' ns' : '') + '" data-id="' + x.id + '" title="' + esc(x.title) + '"><b>' + (one ? '🃏 ' : '') + esc(x.short) + (x.nonstandard ? ' ⚠' : '') + '</b><small>' + esc(dd) + '</small></button>';
       }).join('') + '</div></div>';
     }).join('') + '</div><div class="legend" style="margin:-4px 0 8px"><span>🃏 однодневный турнир (только места)</span><span>⚠ нестандартный формат</span></div>';
+    if (t.schedule) return h + liveCard(t) + liveDays(t.schedule);
     var tw = (t.top || t.rows || []).filter(function (r) { return r.place === 1; })[0];
     h += '<h2 style="margin-top:6px">' + esc(t.title) + ' <span class="tag">финал ' + esc(t.final_date || '') + '</span><span class="tag">' + t.finalists + ' финалистов</span>' + (tw ? '<span class="tag">🏆 ' + esc(disp(tw.name)) + '</span>' : '') + '</h2>' + (t.hidden ? '<p class="note">Показаны игроки, которые играют и в 2026 году: ' + t.rows.length + ' из ' + t.finalists + '. Остальные скрыты, чтобы не засорять статистику; места и ранги — по полному полю.</p>' : '');
     if (t.flag) h += '<div class="flag">⚠ ' + esc(t.flag) + '</div>';
@@ -261,11 +284,12 @@
         var w = Math.min(60, Math.abs(r.delta) * 4);
         h += '<td>' + fmt(r.stack) + '</td><td>' + r.stack_rank + '</td><td class="' + (r.delta > 0 ? 'pos' : (r.delta < 0 ? 'neg' : '')) + '">' + (r.delta ? sgn(r.delta) : '0') + '<span class="bar" style="width:' + w + 'px;background:' + (r.delta > 0 ? 'var(--good)' : 'var(--bad)') + '"></span></td>';
       }
-      h += '<td>' + r.points + '</td></tr>';
+      h += '<td>' + fmt(r.points) + '</td></tr>';
     });
     h += '</tbody></table></div><p class="note">Δ мест = ранг по стеку − итоговое место (плюс — игрок обыграл свой стек). Строка с зелёной полосой слева — последнее место финального стола (топ-9).</p>';
     var df = dayForm(t);
     h += df || (!t.days.length ? '' : ('<h2>Отборочные дни</h2><div class="tw"><table><thead><tr><th>День</th><th>Дата</th><th>Игроков</th><th>Доля добора</th></tr></thead><tbody>' + t.days.map(function (d) { return '<tr><td>' + d.n + '</td><td>' + esc(d.date) + '</td><td>' + d.players + '</td><td>' + (d.addon_rate == null ? '—' : Math.round(d.addon_rate * 100) + '%') + '</td></tr>'; }).join('') + '</tbody></table></div>'));
+    if (t.live_schedule) h += '<h2>Отборочные дни</h2>' + liveDays(t.live_schedule);
     if (t.note) h += '<div class="flag">⚠ ' + esc(t.note) + '</div>';
     return h;
   }

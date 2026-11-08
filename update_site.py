@@ -4,15 +4,26 @@
 Архив серий, события 1–52 и рейтинговые ряды берутся из уже собранного data/data.json."""
 import json, os, sys, datetime
 import fetch_site, build_data as bd
+from live_tournaments import ingest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 P = os.path.join(HERE, 'data', 'data.json')
 
 
 def main():
-    fetch_site.main()
-    result = json.load(open(P, encoding='utf-8'))
-    pl = result['players']
+    page = fetch_site.fetch()
+    if page['title'].strip().casefold() == 'межсезонка' and any(page['days'].values()):
+        fetch_site.save_interseason(page)
+    with open(P, encoding='utf-8') as fh:
+        result = json.load(fh)
+    today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
+    ingest(result, page, bd._norm_name, today)
+    old_players = result['players']
+    pl = bd.build_player_stats(result)
+    for name, player in pl.items():
+        player.update({key: value for key, value in old_players.get(name, {}).items()
+                       if key not in player})
+    result['players'] = pl
     # убираем прежние межсезонные события и добавки рейтинга
     result['events'] = {k: v for k, v in result['events'].items() if int(k) <= 52}
     for p in pl.values():
@@ -21,7 +32,9 @@ def main():
             if p['series']:
                 p['rating_now'] = p['series'][-1]['rating']
     result['checks'] = [c for c in result['checks'] if not c['text'].startswith(('Рейтинг учитывает межсезонку', 'Текущая межсезонка', 'В текущей межсезонке', 'Рейтинг до межсезонки', 'Похожие ники', 'Нет данных о финальных стеках'))]
-    archive = [s for s in result['interseason']['series'] if s.get('status') == 'завершена']
+    current, _ = bd.load_current_inter()
+    archive = [s for s in result['interseason']['series']
+               if s.get('status') == 'завершена' and (not current or s['id'] != current['id'])]
     bd.build_interseason(result, pl, archive)
     bd.attendance_extras(result)
     bd.data_checks(result, {}, pl)

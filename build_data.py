@@ -10,6 +10,7 @@
 Новый турнир: добавить запись в TOURNAMENTS и запустить скрипт ещё раз.
 Места восстанавливаются по формуле рейтинга: очки = sqrt(N*K)/sqrt(место), т.е. место = (макс.очки / очки)^2.
 """
+from live_tournaments import merge_completed
 import openpyxl, glob, json, os, re, sys, statistics as st
 st_mean = st.mean
 from openpyxl.utils import column_index_from_string as ci
@@ -337,7 +338,8 @@ def load_current_inter():
     first = cur['dates'].get(str(days[0]['n']), '01.01.1970').split('.')
     s = dict(id='IS' + first[2][2:] + first[1], title='Межсезонка, октябрь 2026' if first[1] == '10' else 'Межсезонка (текущая)', year=int(first[2]),
              start=f'{first[2]}-{first[1]}-{first[0]}', days=days, planned_days=planned, source=f"сайт результатов, {cur.get('fetched', '')}",
-             status='идёт', hunting=[dict(name=_norm_name(h['name']), value=h['value']) for h in cur.get('hunting', [])])
+             status='завершена' if planned and len(days) == planned else 'идёт',
+             hunting=[dict(name=_norm_name(h['name']), value=h['value']) for h in cur.get('hunting', [])])
     return s, cur
 
 
@@ -506,6 +508,23 @@ def data_checks(result, events, pl):
         print(('[!] ' if c['level'] == 'warn' else '[i] ') + c['text'][:170], file=sys.stderr)
 
 
+def build_player_stats(result):
+    pl = {}
+    for t in result['tournaments']:
+        for r in t['rows']:
+            p = pl.setdefault(r['name'], dict(name=r['name'], finals=0, wins=0, podiums=0, table=0, places=[], deltas=[], list=[]))
+            p['finals'] += 1; p['places'].append(r['place'])
+            p['wins'] += r['place'] == 1; p['podiums'] += r['place'] <= 3; p['table'] += r['place'] <= 9
+            if r.get('delta') is not None: p['deltas'].append(r['delta'])
+            p['list'].append(dict(t=t['id'], short=t['short'], place=r['place'], stack_rank=r.get('stack_rank'), delta=r.get('delta'),
+                                  stack=r['stack'], visits=r['visits'], of=t['finalists']))
+    for p in pl.values():
+        p['avg_place'] = st.mean(p['places'])
+        p['sd_place'] = st.pstdev(p['places']) if len(p['places']) > 1 else None
+        p['avg_delta'] = st.mean(p['deltas']) if p['deltas'] else None
+    return pl
+
+
 def main():
     events = load_rating()
     labels = load_labels()
@@ -601,20 +620,12 @@ def main():
     result['tournaments'].sort(key=lambda t_: tuple(reversed([int(x) for x in t_['final_date'].strip('. ').split('.')])))
     result['notes25'] = notes25
 
-    # сводка по игрокам
-    pl = {}
-    for t in result['tournaments']:
-        for r in t['rows']:
-            p = pl.setdefault(r['name'], dict(name=r['name'], finals=0, wins=0, podiums=0, table=0, places=[], deltas=[], list=[]))
-            p['finals'] += 1; p['places'].append(r['place'])
-            p['wins'] += r['place'] == 1; p['podiums'] += r['place'] <= 3; p['table'] += r['place'] <= 9
-            if r.get('delta') is not None: p['deltas'].append(r['delta'])
-            p['list'].append(dict(t=t['id'], short=t['short'], place=r['place'], stack_rank=r.get('stack_rank'), delta=r.get('delta'),
-                                  stack=r['stack'], visits=r['visits'], of=t['finalists']))
-    for p in pl.values():
-        p['avg_place'] = st.mean(p['places'])
-        p['sd_place'] = st.pstdev(p['places']) if len(p['places']) > 1 else None
-        p['avg_delta'] = st.mean(p['deltas']) if p['deltas'] else None
+    saved = os.path.join(HERE, 'data', 'data.json')
+    if os.path.exists(saved):
+        with open(saved, encoding='utf-8') as fh:
+            result['live_tournaments'] = json.load(fh).get('live_tournaments', {})
+        merge_completed(result)
+    pl = build_player_stats(result)
 
     # --- рейтинг: история по событиям (лучшие RATING_TOP результатов, как в формуле Excel) ---
     RATING_TOP = 12
