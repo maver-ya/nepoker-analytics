@@ -34,10 +34,11 @@ def check(result):
                 dates.append(day['date'])
         require(entrants <= directory.keys(), f"{card['short']}: участник без ID.")
         archive = next((t for t in finals.values()
-                        if (t['short'], t['year']) == (card['short'], card['year'])), None)
+                        if t.get('source_tournament_id') == card['id']
+                        or (t['short'], t['year']) == (card['short'], card['year'])), None)
         if card['rows']:
             require(archive is not None, f"{card['short']}: финал отсутствует в архиве.")
-        if archive is not None:
+        if archive is not None and card['schedule']:
             require(archive.get('live_schedule') == card['schedule'],
                     f"{card['short']}: архивная карточка потеряла отборочные дни.")
         date_order = lambda value: tuple(map(int, reversed(value.split('.'))))

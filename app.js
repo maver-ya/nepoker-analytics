@@ -3,7 +3,7 @@
   'use strict';
   var D = window.NEPOKER, T = D.tournaments, P = D.players;
   var liveTournaments = Object.values(D.live_tournaments || {}).filter(function (t) {
-    return !T.some(function (finished) { return finished.short === t.short && finished.year === t.year; });
+    return !t.rows.length && !T.some(function (finished) { return finished.short === t.short && finished.year === t.year; });
   });
   var DN = D.display || {}, disp = function (n) { return DN[n] || n; };
   var directory = D.player_directory || {}, playerIds = directory.ids || {}, aliases = directory.aliases || {};
@@ -307,7 +307,8 @@
     var listed = T.concat(liveTournaments);
     var archived = Object.values(D.live_tournaments || {}).find(function (x) { return x.id === id; });
     var t = listed.find(function (x) {
-      return x.id === id || (archived && x.short === archived.short && x.year === archived.year);
+      return x.id === id || x.source_tournament_id === id ||
+        (archived && x.short === archived.short && x.year === archived.year);
     }) || listed[listed.length - 1];
     var years = Array.from(new Set(T.map(function (x) { return x.year; }))).sort(function (a, b) { return b - a; });
     var h = '<h1>Турниры</h1><div class="live-tournament-list">' + liveTournaments.map(liveCard).join('') + '</div>';

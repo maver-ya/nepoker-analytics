@@ -47,9 +47,11 @@ def parse_page(html, js):
     previous = re.search(r"showTab\('previousResults'\)[^>]*>([^<]+)", html)
     # Optional source contract: a count for the published results, not the qualifying quota.
     final_count = re.search(r'^const[ \t]+finalResultsCount\s*=\s*(\d+)\s*;', js, re.M)
+    previous_count = re.search(r'^const[ \t]+previousTournamentResultsCount\s*=\s*(\d+)\s*;', js, re.M)
     res.update(final_date=final.group(1) if final else None,
                final_rows=arrays.get('finalResults', []),
                final_count=int(final_count.group(1)) if final_count else None,
+               previous_count=int(previous_count.group(1)) if previous_count else None,
                previous_title=previous.group(1).strip() if previous else '',
                previous_rows=arrays.get('previousTournamentResults', []))
     return res

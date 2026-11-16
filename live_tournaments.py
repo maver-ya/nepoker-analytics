@@ -32,6 +32,59 @@ def tournament_code(title):
     return '-'.join(match.groups()) if match else None
 
 
+ACE_SEASONS = {'весны': 'spring', 'лета': 'summer', 'осени': 'autumn', 'зимы': 'winter'}
+
+
+def named_oneday(title):
+    match = re.search(r'\bтуз(?:а)?\s+(весны|лета|осени|зимы)\b', title, re.I)
+    return match.group(1).casefold() if match else None
+
+
+def import_named_oneday(result, title, date, rows, count, normalize, today):
+    season = named_oneday(title)
+    if season is None or not rows:
+        return None
+    label = 'Туз ' + season.capitalize()
+    date = date or next(iter(re.findall(r'\b\d{1,2}\.\d{1,2}\.\d{4}\b', title)), None)
+    years = set(map(int, re.findall(r'\b20\d{2}\b', title)))
+    if date:
+        try:
+            years.add(date_key(date).year)
+        except ValueError:
+            return f'{label}: не удалось прочитать дату протокола.'
+    if len(years) != 1:
+        return f'{label}: нужен однозначно указанный год протокола.'
+    year = years.pop()
+    key = f'ace-{ACE_SEASONS[season]}-{year}'
+    archive = result.setdefault('live_tournaments', {})
+    matches = [t for t in result['tournaments']
+               if t['year'] == year and named_oneday(t['title']) == season and t['id'] != 'live-' + key]
+    if len(matches) > 1:
+        return f'{label} {year}: в архиве несколько подходящих событий.'
+    known = matches[0] if matches else archive.get(key)
+    if not date:
+        date = known['final_date'] if known else None
+    if not date or date_key(date) > today or (known and date_key(date) != date_key(known['final_date'])):
+        return f'{label} {year}: дата протокола отсутствует или расходится с архивом.'
+    expected = count if count is not None else len(known['rows']) if known else None
+    if not expected:
+        return f'{label} {year}: источник не указал число опубликованных мест.'
+    places = final_rows(rows, normalize, expected)
+    statuses = [str(r.get('status', '')).casefold() for r in rows]
+    winners = [r for r, status in zip(rows, statuses) if status.startswith('победитель')]
+    if not places or (any(statuses) and (len(winners) != 1 or winners[0].get('place') != 1
+                    or any(status != 'участник турнира' and not status.startswith('победитель')
+                           for status in statuses))):
+        return f'{label} {year}: протокол не прошёл сверку состава, мест или статусов.'
+    if known and sorted((r['place'], normalize(r['name'])) for r in known['rows']) != [
+            (r['place'], r['name']) for r in places]:
+        return f'{label} {year}: опубликованные места расходятся с архивом.'
+    archive[key] = dict(id='live-' + key, year=year, short=known['short'] if known else label,
+                        title=known['title'] if known else f'Однодневный турнир Туза {season.capitalize()} {year}',
+                        final_date=date, status='Завершён', schedule={}, rows=places)
+    return None
+
+
 def final_rows(rows, normalize, expected_count=None):
     if not rows:
         return []
@@ -97,6 +150,14 @@ def ingest(result, page, normalize, today):
             elif previous and not pending[0]['rows']:
                 warnings.append(f'{previous_code}: в архиве источника нет подтверждённого протокола финала.')
 
+    for title, date, rows, count in (
+        (page['title'], page.get('final_date'), page['final_rows'], page.get('final_count')),
+        (page['previous_title'], None, page['previous_rows'], page.get('previous_count')),
+    ):
+        warning = import_named_oneday(result, title, date, rows, count, normalize, today)
+        if warning:
+            warnings.append(warning)
+
     for card in archive.values():
         card['status'] = ('Завершён' if card['rows'] else
                           'Ожидаем итоги' if today > date_key(card['final_date']) else 'Идёт отбор')
@@ -111,13 +172,18 @@ def merge_completed(result):
     manual = {(t['short'], t['year']) for t in tournaments}
     for tournament in tournaments:
         card = archive.get(f"{tournament['short']}-{tournament['year']}")
-        if card:
+        if card and card['schedule']:
             tournament['live_schedule'] = card['schedule']
     for card in archive.values():
-        if card['rows'] and (card['short'], card['year']) not in manual:
+        season = named_oneday(card['title'])
+        matches = [t for t in tournaments if season and t['year'] == card['year']
+                   and named_oneday(t['title']) == season]
+        if len(matches) == 1:
+            matches[0]['source_tournament_id'] = card['id']
+        if card['rows'] and not matches and (card['short'], card['year']) not in manual:
             tournaments.append(dict(
                 id=card['id'], title=card['title'], short=card['short'], year=card['year'],
                 final_date=card['final_date'], nonstandard=False, stack_available=False,
                 days=[], rows=card['rows'], finalists=len(card['rows']), rating_event=None,
-                live=True, live_schedule=card['schedule']))
+                live=bool(card['schedule']), live_schedule=card['schedule']))
     result['tournaments'] = sorted(tournaments, key=lambda t: date_key(t['final_date']))

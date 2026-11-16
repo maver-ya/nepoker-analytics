@@ -464,6 +464,8 @@ def attendance_extras(result):
                 extra.append((pd(t['final_date']), dict(id=t['id'], name=t['title'], kind='oneday' if one else 'tourn', who={r['name'] for r in t['rows']})))
         completed = {(t['short'], t['year']): t for t in result['tournaments']}
         for card in result.get('live_tournaments', {}).values():
+            if not card['schedule']:
+                continue  # Published one-day results are already covered by the final archive.
             final = completed.get((card['short'], card['year']), card)
             dates = [pd(day['date']) for day in card['schedule'].values() if day.get('players')]
             who = {p['name'] for day in card['schedule'].values() for p in day.get('players', [])}

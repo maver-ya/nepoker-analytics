@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 import fetch_site, build_data as bd
 from history_db import canonical_name, load_history, load_inputs, normalize_rows, save_interseasons
-from live_tournaments import date_key, ingest, tournament_code
+from live_tournaments import date_key, ingest, named_oneday, tournament_code
 from tournament_db import load_archive, player_ids, rating_snapshots, save_archive
 from rating_audit import build_rating_audit
 from rating_replay import extend_39, replay
@@ -47,6 +47,8 @@ def main():
             current_source = fetch_site.interseason_snapshot(page, current_source)
             if current_source['rating_add']:
                 rating_source = current_source
+    elif named_oneday(title):
+        pass  # Its protocol has its own validation in ingest.
     elif not (tournament_code(title) and page['final_date'] and page['dates']):
         raise ValueError(f'Не распознано расписание события «{title}».')
     else:
