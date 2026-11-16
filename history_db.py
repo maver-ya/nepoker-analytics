@@ -1,4 +1,5 @@
 """Historical finals and player identities in the same SQLite file as live results."""
+import argparse
 import json
 import sqlite3
 from contextlib import closing
@@ -49,7 +50,28 @@ CREATE TABLE IF NOT EXISTS history_interseason_sources (
 """
 
 GENERATED_KEYS = {'tournaments', 'players', 'events', 'interseason', 'attendance',
-                  'live_tournaments', 'checks_summary', 'generated'}
+                  'live_tournaments', 'checks_summary', 'generated', 'player_directory'}
+
+
+def canonical_name(value, aliases):
+    name = str(value).strip()
+    seen = set()
+    while name in aliases and aliases[name] != name:
+        if name in seen:
+            raise ValueError(f'Циклический алиас игрока: {value}')
+        seen.add(name)
+        name = aliases[name]
+    return name
+
+
+def normalize_rows(rows, normalize, context):
+    seen = set()
+    for row in rows:
+        name = normalize(row['name'])
+        if name in seen:
+            raise ValueError(f'{context}: алиас связывает две строки игрока «{name}». Требуется ручная сверка.')
+        row['name'] = name
+        seen.add(name)
 
 
 def save_history(result, aliases, path=DB, current_inter=None):
@@ -67,8 +89,7 @@ def save_history(result, aliases, path=DB, current_inter=None):
             db.executemany('INSERT OR IGNORE INTO history_players (name) VALUES (?)',
                            ((name,) for name in sorted(names)))
             ids = dict(db.execute('SELECT name, id FROM history_players'))
-            db.execute('DELETE FROM history_aliases')
-            db.executemany('INSERT INTO history_aliases VALUES (?, ?)',
+            db.executemany('INSERT OR IGNORE INTO history_aliases VALUES (?, ?)',
                            ((alias, ids[name]) for alias, name in sorted(aliases.items())))
             db.execute('DELETE FROM history_tournaments')
             for i, t in enumerate(tournaments):
@@ -185,12 +206,36 @@ def load_history(path=DB):
     return list(tournaments.values()), aliases
 
 
+def add_alias(alias, name, path=DB):
+    alias, name = alias.strip(), name.strip()
+    if not alias or not name:
+        raise ValueError('Алиас и имя должны быть непустыми.')
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute('PRAGMA foreign_keys = ON')
+        db.execute('BEGIN IMMEDIATE')
+        player = db.execute('SELECT id FROM history_players WHERE name=?', (name,)).fetchone()
+        if player is None:
+            raise ValueError(f'Игрок «{name}» отсутствует в реестре.')
+        aliases = dict(db.execute('''
+            SELECT a.alias, p.name FROM history_aliases a JOIN history_players p ON p.id = a.player_id
+        '''))
+        aliases[alias] = name
+        canonical_name(alias, aliases)
+        db.execute('INSERT OR REPLACE INTO history_aliases VALUES (?, ?)', (alias, player[0]))
+
+
 if __name__ == '__main__':
     from build_data import ALIAS25, ALIASES
 
-    result = json.loads(DB.with_name('data.json').read_text(encoding='utf-8'))
-    current = DB.parent.parent / 'interseason' / 'current.json'
-    save_history(result, {**ALIASES, **ALIAS25},
-                 current_inter=json.loads(current.read_text(encoding='utf-8')) if current.exists() else None)
-    tournaments, aliases = load_history()
-    print(f'Imported {len(tournaments)} historical tournaments and {len(aliases)} aliases.')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--alias', nargs=2, metavar=('ALIAS', 'NAME'))
+    args = parser.parse_args()
+    if args.alias:
+        add_alias(*args.alias)
+    else:
+        result = json.loads(DB.with_name('data.json').read_text(encoding='utf-8'))
+        current = DB.parent.parent / 'interseason' / 'current.json'
+        save_history(result, {**ALIASES, **ALIAS25},
+                     current_inter=json.loads(current.read_text(encoding='utf-8')) if current.exists() else None)
+        tournaments, aliases = load_history()
+        print(f'Imported {len(tournaments)} historical tournaments and {len(aliases)} aliases.')

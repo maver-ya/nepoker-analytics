@@ -76,7 +76,7 @@ def ingest(result, page, normalize, today):
                 players = day_rows(page['days'].get(day, []), normalize)
                 if players and len(players) >= len(schedule.get('players', [])):
                     schedule['players'] = players
-                elif page['days'].get(day):
+                elif page['days'].get(day) or schedule.get('players'):
                     warnings.append(f'{code}, день {day}: получена неполная или некорректная таблица.')
             rows = final_rows(page['final_rows'], normalize, page.get('final_count'))
             if rows and date_key(final_date) <= today and len(rows) >= len(card['rows']):

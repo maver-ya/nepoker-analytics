@@ -6,6 +6,22 @@
     return !T.some(function (finished) { return finished.short === t.short && finished.year === t.year; });
   });
   var DN = D.display || {}, disp = function (n) { return DN[n] || n; };
+  var directory = D.player_directory || {}, playerIds = directory.ids || {}, aliases = directory.aliases || {};
+  var namesById = Object.fromEntries(Object.entries(playerIds).map(function (entry) { return [String(entry[1]), entry[0]]; }));
+  function playerName(value) {
+    if (!value) return value;
+    var name = value.startsWith('id:') ? namesById[value.slice(3)] || value : value;
+    var seen = new Set();
+    while (Object.hasOwn(aliases, name) && !seen.has(name)) {
+      seen.add(name);
+      name = aliases[name];
+    }
+    return name;
+  }
+  function profilePath(name) {
+    var id = playerIds[playerName(name)];
+    return '#players/' + (id ? 'id:' + id : encodeURIComponent(name));
+  }
   var mq = window.matchMedia('(max-width: 640px)'), MOB = mq.matches;
   var cut = function (s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
   var app = document.getElementById('app');
@@ -23,10 +39,10 @@
     var hs = 0, s = String(name); for (var i = 0; i < s.length; i++) hs = (hs * 31 + s.charCodeAt(i)) % 360;
     return '<span class="av ' + (cls || '') + '" style="background:hsl(' + hs + ' 42% 36%)">' + esc(ini) + '</span>';
   }
-  var plink = function (n, cls) { return '<a class="pl pa" href="#players/' + encodeURIComponent(n) + '">' + avatar(n, cls || 'sm') + '<span>' + esc(disp(n)) + '</span></a>'; };
+  var plink = function (n, cls) { return '<a class="pl pa" href="' + profilePath(n) + '">' + avatar(n, cls || 'sm') + '<span>' + esc(disp(n)) + '</span></a>'; };
   var tip = function (t) { return '<span class="tip" tabindex="0" data-tip="' + esc(t) + '">?</span>'; };
 
-  var link = function (n) { return '<a class="pl" href="#players/' + encodeURIComponent(n) + '">' + esc(disp(n)) + '</a>'; };
+  var link = function (n) { return '<a class="pl" href="' + profilePath(n) + '">' + esc(disp(n)) + '</a>'; };
   var mean = function (a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : null; };
   var sd = function (a) { if (a.length < 2) return null; var m = mean(a); return Math.sqrt(mean(a.map(function (x) { return (x - m) * (x - m); }))); };
 
@@ -186,7 +202,7 @@
     var order = [1, 0, 2], cls = ['s1', 's2', 's3'], med = ['🥇', '🥈', '🥉'], out = '<div class="podium">';
     order.forEach(function (i) {
       var r = rows[i]; if (!r) return;
-      out += '<div class="pc ' + cls[i] + '">' + avatar(r.name, 'lg') + '<div class="nm"><a href="#players/' + encodeURIComponent(r.name) + '">' + esc(disp(r.name)) + '</a></div><div class="sub2">' + (r.stack_rank ? 'старт: стек №' + r.stack_rank : '&nbsp;') + '</div><div class="step">' + med[i] + '</div></div>';
+      out += '<div class="pc ' + cls[i] + '">' + avatar(r.name, 'lg') + '<div class="nm">' + link(r.name) + '</div><div class="sub2">' + (r.stack_rank ? 'старт: стек №' + r.stack_rank : '&nbsp;') + '</div><div class="step">' + med[i] + '</div></div>';
     });
     return out + '</div>';
   }
@@ -810,16 +826,21 @@
     var inp = document.getElementById('gs'), box = document.getElementById('gsr'); if (!inp) return;
     var names = new Set(Object.keys(PA));
     var interNames = new Set(IT.alltime.map(function (p) { return p.name; }));
+    var searchAliases = new Map();
+    Object.keys(aliases).forEach(function (alias) {
+      var name = playerName(alias);
+      searchAliases.set(name, (searchAliases.get(name) || '') + ' ' + alias);
+    });
     interNames.forEach(function (name) { names.add(name); });
     liveTournaments.concat(T).forEach(function (t) {
       Object.values(t.live_schedule || t.schedule || {}).forEach(function (day) {
         (day.players || []).forEach(function (p) { names.add(p.name); });
       });
     });
-    function find(q) { q = q.trim().toLowerCase(); if (!q) return []; return Array.from(names).filter(function (n) { return (n + ' ' + disp(n)).toLowerCase().indexOf(q) >= 0; }).sort(function (x, y) { return (PA[y] ? PA[y].finals : 0) - (PA[x] ? PA[x].finals : 0); }).slice(0, 8); }
-    function show() { var r = find(inp.value); box.innerHTML = r.map(function (n) { return '<a href="#players/' + encodeURIComponent(n) + '">' + avatar(n, 'sm') + '<span>' + esc(disp(n)) + '</span> <span class="note">' + (PA[n] ? PA[n].finals + ' фин.' : interNames.has(n) ? 'межсезонка' : 'отбор') + '</span></a>'; }).join('') || (inp.value.trim() ? '<span class="note" style="padding:8px 12px;display:block">Никого не найдено</span>' : ''); box.hidden = !box.innerHTML; }
+    function find(q) { q = q.trim().toLowerCase(); if (!q) return []; return Array.from(names).filter(function (n) { return (n + ' ' + disp(n) + (searchAliases.get(n) || '')).toLowerCase().includes(q); }).sort(function (x, y) { return (PA[y] ? PA[y].finals : 0) - (PA[x] ? PA[x].finals : 0); }).slice(0, 8); }
+    function show() { var r = find(inp.value); box.innerHTML = r.map(function (n) { return '<a href="' + profilePath(n) + '">' + avatar(n, 'sm') + '<span>' + esc(disp(n)) + '</span> <span class="note">' + (PA[n] ? PA[n].finals + ' фин.' : interNames.has(n) ? 'межсезонка' : 'отбор') + '</span></a>'; }).join('') || (inp.value.trim() ? '<span class="note" style="padding:8px 12px;display:block">Никого не найдено</span>' : ''); box.hidden = !box.innerHTML; }
     inp.addEventListener('input', show); inp.addEventListener('focus', show);
-    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var r = find(inp.value); if (r[0]) { location.hash = '#players/' + encodeURIComponent(r[0]); inp.value = ''; box.hidden = true; inp.blur(); } } if (e.key === 'Escape') { box.hidden = true; inp.blur(); } });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var r = find(inp.value); if (r[0]) { location.hash = profilePath(r[0]); inp.value = ''; box.hidden = true; inp.blur(); } } if (e.key === 'Escape') { box.hidden = true; inp.blur(); } });
     box.addEventListener('click', function () { setTimeout(function () { inp.value = ''; box.hidden = true; }, 0); });
     document.addEventListener('click', function (e) { if (!e.target.closest('.gs')) box.hidden = true; });
     document.addEventListener('keydown', function (e) { if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT') { e.preventDefault(); inp.focus(); } });
@@ -868,7 +889,7 @@
   }
   function pRatingOne(name, list) {
     var p = PA[name], ri = ratingInfo(name), K = D.rating_top, pos = list.indexOf(p), up = list[pos - 1], dn = list[pos + 1];
-    var h = '<p><a href="#rating">← весь рейтинг</a> · <a href="#players/' + encodeURIComponent(name) + '">профиль игрока</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1>';
+    var h = '<p><a href="#rating">← весь рейтинг</a> · <a href="' + profilePath(name) + '">профиль игрока</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1>';
     h += '<p class="sub">Рейтинг <b>' + p.rating_now + '</b> · ' + (pos + 1) + '-е место из ' + list.length + ' · известных результатов с очками: ' + ri.n + (ri.matches && ri.n > K ? ' (в зачёте ' + K + ' лучших)' : '') + '</p>';
     function need(gap, who, sign) {
       var x = ri.full ? gap + ri.min : gap;
@@ -1158,7 +1179,8 @@
     var sub = tab === 'fun' ? (parts[1] || 'awards') : null, arg, second;
     try {
       arg = decodeURIComponent((tab === 'fun' ? parts[2] : parts[1]) || '') || null;
-      if (tab === 'compare') second = decodeURIComponent(parts[2] || '') || null;
+      if (tab === 'players' || tab === 'rating' || tab === 'compare') arg = playerName(arg);
+      if (tab === 'compare') second = playerName(decodeURIComponent(parts[2] || ''));
     } catch (error) {
       app.innerHTML = '<h1>Некорректная ссылка</h1><p><a href="#overview">Перейти на главную</a></p>';
       return;
@@ -1205,8 +1227,8 @@
     var itr = ev.target.closest('.chip.itr'); if (itr) { location.hash = '#inter/' + itr.dataset.id; return; }
     var hn = ev.target.closest('.chip.hnt'); if (hn) { location.hash = '#fun/hunt/' + hn.dataset.id; return; }
     var wq = ev.target.closest('.wiq'); if (wq) { var wi = document.getElementById('wi'); wi.value = wq.dataset.v; document.getElementById('wires').innerHTML = whatIf(wi.dataset.name, wq.dataset.v); return; }
-    var ppr = ev.target.closest('#pprint'); if (ppr) { var nm0 = decodeURIComponent((location.hash.split('/')[1] || '')), old = document.title; document.title = 'неПокер — ' + disp(nm0); window.print(); setTimeout(function () { document.title = old; }, 500); return; }
-    var psh = ev.target.closest('#pshare'); if (psh) { doShare(decodeURIComponent(location.hash.split('/')[1] || ''), document.getElementById('pmsg')); return; }
+    var ppr = ev.target.closest('#pprint'); if (ppr) { var nm0 = playerName(decodeURIComponent(location.hash.split('/')[1] || '')), old = document.title; document.title = 'неПокер — ' + disp(nm0); window.print(); setTimeout(function () { document.title = old; }, 500); return; }
+    var psh = ev.target.closest('#pshare'); if (psh) { doShare(playerName(decodeURIComponent(location.hash.split('/')[1] || '')), document.getElementById('pmsg')); return; }
     var rp = ev.target.closest('.chip.rpt'); if (rp) location.hash = '#report/' + rp.dataset.id;
     var dl = ev.target.closest('.dl'); if (dl) { var cv = document.getElementById(dl.dataset.cv); cv.toBlob(function (b) { var u = URL.createObjectURL(b), l = document.createElement('a'); l.href = u; l.download = 'nepoker-' + pReport.cur.t.id + '-' + dl.dataset.name + '.png'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 1000); }); }
     var cp = ev.target.closest('#repcopy'); if (cp) { var tx = document.getElementById('reptext').textContent, msg = document.getElementById('repmsg'); (navigator.clipboard ? navigator.clipboard.writeText(tx) : Promise.reject()).then(function () { msg.textContent = 'Скопировано'; }, function () { var r = document.createRange(); r.selectNodeContents(document.getElementById('reptext')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); msg.textContent = 'Текст выделен — нажмите Ctrl+C'; }); }

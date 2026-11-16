@@ -6,9 +6,9 @@ import json, os, datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 import fetch_site, build_data as bd
-from history_db import load_history, load_inputs, save_interseasons
+from history_db import canonical_name, load_history, load_inputs, normalize_rows, save_interseasons
 from live_tournaments import date_key, ingest, tournament_code
-from tournament_db import load_archive, save_archive
+from tournament_db import load_archive, player_ids, save_archive
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 P = os.path.join(HERE, 'data', 'data.json')
@@ -57,20 +57,31 @@ def main():
     result = inputs if inputs is not None else dict(previous)
     result['live_tournaments'] = load_archive(previous.get('live_tournaments'))
     history = load_history()
-    normalize = bd._norm_name
+    aliases = {**bd.ALIASES, **bd.ALIAS25}
     if history is not None:
         result['tournaments'], aliases = history
 
-        def normalize(name):
-            name = str(name).strip()
-            return aliases.get(name, name)
+    def normalize(name):
+        return canonical_name(name, aliases)
 
+    for t in result['tournaments']:
+        normalize_rows(t['rows'], normalize, t['title'])
+    for t in result['live_tournaments'].values():
+        normalize_rows(t['rows'], normalize, t['title'])
+        for day, data in t['schedule'].items():
+            normalize_rows(data.get('players', []), normalize, f"{t['title']}, день {day}")
     today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
     import_warnings = ingest(result, page, normalize, today)
     old_players = result.pop('player_metadata', None) if inputs is not None else previous['players']
+    metadata = {}
+    for name, player in old_players.items():
+        target = normalize(name)
+        if target in metadata:
+            raise ValueError(f'Алиасы связывают две истории рейтинга игрока «{target}». Требуется ручная сверка.')
+        metadata[target] = player
     pl = bd.build_player_stats(result)
     for name, player in pl.items():
-        player.update({key: value for key, value in old_players.get(name, {}).items()
+        player.update({key: value for key, value in metadata.get(name, {}).items()
                        if key not in player})
     result['players'] = pl
     # убираем прежние межсезонные события и добавки рейтинга
@@ -89,11 +100,15 @@ def main():
     else:
         current = bd.load_current_inter()
         archive = previous['interseason']['series']
+    for series in archive:
+        for day in series['days']:
+            normalize_rows(day['players'], normalize, f"{series['title']}, день {day['n']}")
     bd.build_interseason(result, pl, archive, current, normalize, rating_source)
     bd.attendance_extras(result)
     bd.data_checks(result, {}, pl, (current[0], rating_source or current[1]), normalize)
     js_path = os.path.join(HERE, 'data', 'data.js')
-    save_archive(result['live_tournaments'])
+    save_archive(result['live_tournaments'], snapshot=page, warnings=import_warnings)
+    result['player_directory'] = dict(ids=player_ids(), aliases=aliases)
     if inputs is not None:
         save_interseasons(result['interseason']['series'], current_source)
     published = {k: v for k, v in previous.items() if k != 'generated'}
