@@ -458,7 +458,7 @@ def attendance_extras(result):
                 if t.get('live_schedule'):
                     continue
                 one = not t.get('days') and not t.get('stack_available')
-                extra.append((pd(t['final_date']), dict(name=t['title'], kind='oneday' if one else 'tourn', who={r['name'] for r in t['rows']})))
+                extra.append((pd(t['final_date']), dict(id=t['id'], name=t['title'], kind='oneday' if one else 'tourn', who={r['name'] for r in t['rows']})))
         completed = {(t['short'], t['year']): t for t in result['tournaments']}
         for card in result.get('live_tournaments', {}).values():
             final = completed.get((card['short'], card['year']), card)
@@ -468,18 +468,22 @@ def attendance_extras(result):
                 dates.append(pd(final['final_date']))
                 who.update(r['name'] for r in final['rows'])
             if dates and min(dates) > cut:
-                extra.append((min(dates), dict(name=final['title'], kind='tourn', who=who)))
+                extra.append((min(dates), dict(id=final['id'], name=final['title'], kind='tourn', who=who)))
         for s in result.get('interseason', {}).get('series', []):
             if s['days'] and pd(s['days'][0]['date']) > cut:
                 who = {_norm_name(p['name']) for d in s['days'] for p in d['players']}
-                extra.append((pd(s['days'][0]['date']), dict(name=s['title'], kind='inter', who=who)))
+                extra.append((pd(s['days'][0]['date']), dict(id=s['id'], name=s['title'], kind='inter', who=who)))
     extra.sort(key=lambda x: x[0])
     seen = set(core['pc']); pc = dict(core['pc'])
     years = {y: dict(events=v['events'], sum=v['sum'], new=v['new'], uniq=set(v['uniq'])) for y, v in core['years'].items()}
     events = [dict(e) for e in core['events']]
+    recent = {}
     for d, e in extra:
         n_new = len(e['who'] - seen); seen |= e['who']
-        for nm in e['who']: pc[nm] = pc.get(nm, 0) + 1
+        item = dict(id=e['id'], name=e['name'], kind=e['kind'], date=d.strftime('%d.%m.%Y'))
+        for nm in sorted(e['who']):
+            pc[nm] = pc.get(nm, 0) + 1
+            recent.setdefault(nm, []).append(item)
         y = years.setdefault(str(d.year), dict(events=0, sum=0, new=0, uniq=set()))
         y['events'] += 1; y['sum'] += len(e['who']); y['new'] += n_new; y['uniq'] |= e['who']
         events.append(dict(name=e['name'], year=d.year, kind=e['kind'], n=len(e['who']), new=n_new, extra=True))
@@ -488,7 +492,7 @@ def attendance_extras(result):
         events=events,
         years={y: dict(events=v['events'], avg=round(v['sum'] / v['events'], 1), new=v['new'], uniq=len(v['uniq'])) for y, v in years.items()},
         top=core['top'], dist=dist, total=len(pc),
-        last_core=core['events'][-1]['name'], extra_n=len(extra))
+        last_core=core['events'][-1]['name'], extra_n=len(extra), recent=recent)
 
 
 def data_checks(result, events, pl, current=None, normalize=_norm_name):

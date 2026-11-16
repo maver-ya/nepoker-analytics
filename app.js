@@ -381,9 +381,9 @@
     return out + '</svg>';
   }
   function pPlayer(name) {
-    var qualifiers = playerQualifierResults(name), inter = interBlock(name), p = PA[name];
-    if (!p) return qualifiers || inter
-      ? '<p><a href="#players">← все игроки</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1>' + qualifiers + inter
+    var qualifiers = playerQualifierResults(name), inter = interBlock(name), attendance = playerAttendance(name), p = PA[name];
+    if (!p) return qualifiers || inter || attendance
+      ? '<p><a href="#players">← все игроки</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1>' + attendance + qualifiers + inter
       : '<h1>Игрок не найден</h1>';
     var h = '<p><a href="#players">← все игроки</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1><div class="pact"><a class="btn ghost" href="#compare/' + encodeURIComponent(name) + '">⚖ Сравнить</a><button class="btn ghost" type="button" id="pprint">🖨 Печать / PDF</button><button class="btn ghost" type="button" id="pshare">🖼 Картинкой</button><span class="note" id="pmsg"></span></div>';
     var bg = badges(name);
@@ -402,6 +402,7 @@
     h += '<h2>Рейтинг по событиям</h2><p class="note">Рейтинг — сумма ' + D.rating_top + ' лучших результатов. Золотые точки — финалы турниров; наведите курсор на точку.</p><div class="chart">' + ratingChart(p) + '</div>' + capRating(p) + (p.rating_now ? '<p class="note"><a href="#rating/' + encodeURIComponent(name) + '">Какие результаты в зачёте и сколько нужно для обгона соседей →</a></p>' : '');
     h += inter;
     h += qualifiers;
+    h += attendance;
     h += '<h2>История финалов</h2><div class="tw"><table class="htab"><thead><tr><th class="l">Турнир</th><th>Место</th><th>из</th><th>Ранг стека</th><th>Δ мест</th><th>Стек</th><th>Дней</th><th>Дневная форма</th></tr></thead><tbody>';
     p.list.forEach(function (l) {
       var t = T.filter(function (x) { return x.id === l.t; })[0], row = t && t.rows.filter(function (r) { return r.name === name; })[0];
@@ -825,6 +826,8 @@
   function setupSearch() {
     var inp = document.getElementById('gs'), box = document.getElementById('gsr'); if (!inp) return;
     var names = new Set(Object.keys(PA));
+    var attendanceNames = new Set(Object.keys(D.attendance_core?.pc || {}));
+    attendanceNames.forEach(function (name) { names.add(name); });
     var interNames = new Set(IT.alltime.map(function (p) { return p.name; }));
     var searchAliases = new Map();
     Object.keys(aliases).forEach(function (alias) {
@@ -837,8 +840,17 @@
         (day.players || []).forEach(function (p) { names.add(p.name); });
       });
     });
-    function find(q) { q = q.trim().toLowerCase(); if (!q) return []; return Array.from(names).filter(function (n) { return (n + ' ' + disp(n) + (searchAliases.get(n) || '')).toLowerCase().includes(q); }).sort(function (x, y) { return (PA[y] ? PA[y].finals : 0) - (PA[x] ? PA[x].finals : 0); }).slice(0, 8); }
-    function show() { var r = find(inp.value); box.innerHTML = r.map(function (n) { return '<a href="' + profilePath(n) + '">' + avatar(n, 'sm') + '<span>' + esc(disp(n)) + '</span> <span class="note">' + (PA[n] ? PA[n].finals + ' фин.' : interNames.has(n) ? 'межсезонка' : 'отбор') + '</span></a>'; }).join('') || (inp.value.trim() ? '<span class="note" style="padding:8px 12px;display:block">Никого не найдено</span>' : ''); box.hidden = !box.innerHTML; }
+    function find(q) {
+      q = q.trim().toLowerCase();
+      if (!q) return [];
+      var exact = function (n) { return n.toLowerCase() === q || disp(n).toLowerCase() === q; };
+      return Array.from(names).filter(function (n) {
+        return (n + ' ' + disp(n) + (searchAliases.get(n) || '')).toLowerCase().includes(q);
+      }).sort(function (x, y) {
+        return Number(exact(y)) - Number(exact(x)) || (PA[y]?.finals || 0) - (PA[x]?.finals || 0);
+      }).slice(0, 8);
+    }
+    function show() { var r = find(inp.value); box.innerHTML = r.map(function (n) { return '<a href="' + profilePath(n) + '">' + avatar(n, 'sm') + '<span>' + esc(disp(n)) + '</span> <span class="note">' + (PA[n] ? PA[n].finals + ' фин.' : interNames.has(n) ? 'межсезонка' : attendanceNames.has(n) ? 'посещаемость' : 'отбор') + '</span></a>'; }).join('') || (inp.value.trim() ? '<span class="note" style="padding:8px 12px;display:block">Никого не найдено</span>' : ''); box.hidden = !box.innerHTML; }
     inp.addEventListener('input', show); inp.addEventListener('focus', show);
     inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var r = find(inp.value); if (r[0]) { location.hash = profilePath(r[0]); inp.value = ''; box.hidden = true; inp.blur(); } } if (e.key === 'Escape') { box.hidden = true; inp.blur(); } });
     box.addEventListener('click', function () { setTimeout(function () { inp.value = ''; box.hidden = true; }, 0); });
@@ -916,6 +928,18 @@
     });
     if (!rows.length) return '';
     return '<h2>Результаты отборочных дней</h2><p class="note">Итоги из опубликованных таблиц дней. Очки рейтинга показаны отдельно.</p><div class="tw"><table class="dtab"><thead><tr><th class="l">Турнир</th><th>День</th><th>Дата</th><th>Итог</th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
+  }
+
+  function playerAttendance(name) {
+    var historical = D.attendance_core?.pc?.[name] || 0;
+    var recent = D.attendance?.recent?.[name] || [];
+    if (!historical && !recent.length) return '';
+    var h = '<h2>Посещаемость</h2><div class="card"><p><b>' + (historical + recent.length) + '</b> · событий клуба с отметкой об участии</p>';
+    if (historical) h += '<p class="note">Событий по историческому счётчику клуба — ' + historical + '.</p>';
+    if (recent.length) h += '<ul>' + recent.slice().reverse().map(function (e) {
+      return '<li><a href="#' + (e.kind === 'inter' ? 'inter' : 'tournaments') + '/' + encodeURIComponent(e.id) + '">' + esc(e.name) + '</a> · ' + esc(e.date) + '</li>';
+    }).join('') + '</ul>';
+    return h + '</div>';
   }
 
   /* ---------- зал славы ---------- */
