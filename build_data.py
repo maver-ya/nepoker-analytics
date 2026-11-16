@@ -12,6 +12,7 @@
 """
 from live_tournaments import merge_completed
 from tournament_db import load_archive
+from history_db import save_history
 import openpyxl, glob, json, os, re, sys, statistics as st
 st_mean = st.mean
 from openpyxl.utils import column_index_from_string as ci
@@ -714,6 +715,7 @@ def main():
     import datetime as _dt
     result['generated'] = _dt.datetime.now().strftime('%d.%m.%Y %H:%M')
     os.makedirs(os.path.join(HERE, 'data'), exist_ok=True)
+    save_history(result, {**ALIASES, **ALIAS25})
     with open(os.path.join(HERE, 'data', 'data.json'), 'w', encoding='utf-8') as fh:
         json.dump(result, fh, ensure_ascii=False)
     with open(os.path.join(HERE, 'data', 'data.js'), 'w', encoding='utf-8') as fh:

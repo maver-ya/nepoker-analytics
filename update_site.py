@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Быстрое обновление межсезонки без Excel: скачивает данные с сайта результатов и пересобирает data/data.js.
+"""Обновляет турниры и межсезонку с сайта результатов и пересобирает data/data.js.
 Используется автозапуском на GitHub (.github/workflows/update.yml), локально тоже работает:   python update_site.py
-Архив серий, события 1–52 и рейтинговые ряды берутся из уже собранного data/data.json."""
+Архив финалов и алиасы читаются из SQLite. Архив межсезонок и рейтинг берутся из data/data.json."""
 import json, os, sys, datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 import fetch_site, build_data as bd
+from history_db import load_history
 from live_tournaments import date_key, ingest, tournament_code
 from tournament_db import load_archive, save_archive
 
@@ -43,8 +44,17 @@ def main():
         previous_data = fh.read()
     result = json.loads(previous_data)
     result['live_tournaments'] = load_archive(result.get('live_tournaments'))
+    history = load_history()
+    normalize = bd._norm_name
+    if history is not None:
+        result['tournaments'], aliases = history
+
+        def normalize(name):
+            name = str(name).strip()
+            return aliases.get(name, name)
+
     today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
-    import_warnings = ingest(result, page, bd._norm_name, today)
+    import_warnings = ingest(result, page, normalize, today)
     old_players = result['players']
     pl = bd.build_player_stats(result)
     for name, player in pl.items():
