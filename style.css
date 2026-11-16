@@ -560,6 +560,16 @@ td.l a.pa .av{margin-right:0}
 
 /* турниры: группы по годам */
 .tgroups{display:grid;gap:10px;margin:8px 0 6px}
+.live-tournament-list{display:grid;gap:8px;margin-bottom:12px}
+.live-tournament-list:empty{display:none}
+.tournament-picker{display:grid;gap:6px;margin-bottom:12px}
+.tournament-picker select{width:100%;min-width:0;font:inherit}
+.day-heading{scroll-margin-top:110px}
+.hbtn[hidden]{display:none}
+@media (max-width:360px){
+  .top-in .gs{flex:1 1 66px;min-width:0}
+  .fbtn #fbadge{display:none}
+}
 .tg{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
 .tgy b{display:block;font-size:24px;line-height:1.1;color:var(--head)}
 .tgy span{font-size:12px;color:var(--mute)}

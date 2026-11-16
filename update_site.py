@@ -75,6 +75,7 @@ def main():
             normalize_rows(data.get('players', []), normalize, f"{t['title']}, день {day}")
     today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
     import_warnings = ingest(result, page, normalize, today)
+    bd.mark_estimated_stacks(result)
     old_players = result.pop('player_metadata', None) if inputs is not None else previous['players']
     metadata = {}
     for name, player in old_players.items():

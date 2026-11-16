@@ -543,14 +543,24 @@ def empty_player(name):
                 avg_place=None, sd_place=None, avg_delta=None)
 
 
+def mark_estimated_stacks(result):
+    quality = set(result.get('quality', []))
+    for t in result['tournaments']:
+        for row in t['rows']:
+            if f"{t['title']}: финалист «{row['name']}» не найден в таблице, стек = только базовый бонус" in quality:
+                row['stack_estimated'] = True
+
+
 def build_player_stats(result):
     pl = {}
     for t in result['tournaments']:
+        comparable_stack = not any(row.get('stack_estimated') for row in t['rows'])
         for r in t['rows']:
             p = pl.setdefault(r['name'], empty_player(r['name']))
             p['finals'] += 1; p['places'].append(r['place'])
             p['wins'] += r['place'] == 1; p['podiums'] += r['place'] <= 3; p['table'] += r['place'] <= 9
-            if r.get('delta') is not None: p['deltas'].append(r['delta'])
+            if r.get('delta') is not None and comparable_stack:
+                p['deltas'].append(r['delta'])
             p['list'].append(dict(t=t['id'], short=t['short'], place=r['place'], stack_rank=r.get('stack_rank'), delta=r.get('delta'),
                                   stack=r['stack'], visits=r['visits'], of=t['finalists']))
     for p in pl.values():
@@ -682,6 +692,7 @@ def main():
     else:
         result['live_tournaments'] = load_archive()
     merge_completed(result)
+    mark_estimated_stacks(result)
     pl = build_player_stats(result)
 
     # --- рейтинг: история по событиям (лучшие RATING_TOP результатов, как в формуле Excel) ---
