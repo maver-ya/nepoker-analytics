@@ -13,6 +13,7 @@
 from live_tournaments import merge_completed
 from tournament_db import load_archive
 from history_db import save_history
+from rating_audit import build_rating_audit
 import openpyxl, glob, json, os, re, sys, statistics as st
 st_mean = st.mean
 from openpyxl.utils import column_index_from_string as ci
@@ -722,13 +723,15 @@ def main():
     result['players'] = pl
     npath = os.path.join(HERE, 'names.json')
     result['display'] = json.load(open(npath, encoding='utf-8')) if os.path.exists(npath) else {}
-    build_interseason(result, pl)
+    current = load_current_inter()
+    build_interseason(result, pl, current=current)
+    build_rating_audit(result, current[1], _norm_name)
     build_attendance(result)
     data_checks(result, events, pl)
     import datetime as _dt
     result['generated'] = _dt.datetime.now().strftime('%d.%m.%Y %H:%M')
     os.makedirs(os.path.join(HERE, 'data'), exist_ok=True)
-    save_history(result, {**ALIASES, **ALIAS25}, current_inter=load_current_inter()[1])
+    save_history(result, {**ALIASES, **ALIAS25}, current_inter=current[1])
     with open(os.path.join(HERE, 'data', 'data.json'), 'w', encoding='utf-8') as fh:
         json.dump(result, fh, ensure_ascii=False)
     with open(os.path.join(HERE, 'data', 'data.js'), 'w', encoding='utf-8') as fh:

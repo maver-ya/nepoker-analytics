@@ -9,6 +9,7 @@ import fetch_site, build_data as bd
 from history_db import canonical_name, load_history, load_inputs, normalize_rows, save_interseasons
 from live_tournaments import date_key, ingest, tournament_code
 from tournament_db import load_archive, player_ids, save_archive
+from rating_audit import build_rating_audit
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 P = os.path.join(HERE, 'data', 'data.json')
@@ -104,6 +105,7 @@ def main():
         for day in series['days']:
             normalize_rows(day['players'], normalize, f"{series['title']}, день {day['n']}")
     bd.build_interseason(result, pl, archive, current, normalize, rating_source)
+    build_rating_audit(result, rating_source or current[1], normalize)
     bd.attendance_extras(result)
     bd.data_checks(result, {}, pl, (current[0], rating_source or current[1]), normalize)
     js_path = os.path.join(HERE, 'data', 'data.js')

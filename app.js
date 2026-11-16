@@ -722,7 +722,11 @@
   }
   function capRating(p) {
     var s = p.series; if (!s || s.length < 3) return '';
-    var best = null; s.forEach(function (z, i) { var g = z.rating - (i ? s[i - 1].rating : 0); if (!best || g > best.g) best = { g: g, e: z.e }; });
+    var best = null; s.forEach(function (z, i) {
+      var g = D.events[z.e]?.kind === 'inter' ? (z.delta ?? z.pts) : z.rating - (i ? s[i - 1].rating : 0);
+      if (g > 0 && (!best || g > best.g)) best = { g: g, e: z.e };
+    });
+    if (!best) return '';
     var ev = D.events[best.e] || { label: 'событие ' + best.e }, last = s[s.length - 1];
     return cap('Рейтинг ' + last.rating + (p.rating_rank ? ' (#' + p.rating_rank + ')' : '') + '. Самый большой скачок — ' + esc(ev.label) + ' (+' + best.g + ').');
   }
@@ -874,21 +878,24 @@
     }), K = D.rating_top;
     var idx = s.map(function (z, i) { return i; }).sort(function (a, b) { return s[b].pts - s[a].pts || a - b; });
     var top = idx.slice(0, K), sum = top.reduce(function (total, i) { return total + s[i].pts; }, 0);
-    var matches = Math.abs(sum - p.rating_now) < 0.01 &&
-      !(p.series || []).some(function (z) { return D.events[z.e] && D.events[z.e].kind === 'inter' && (z.delta ?? z.pts) !== 0; });
+    var audit = D.rating_audit?.players?.[name];
+    var matches = audit?.matches ?? (Math.abs(sum - p.rating_now) < 0.01 &&
+      !(p.series || []).some(function (z) { return D.events[z.e] && D.events[z.e].kind === 'inter' && (z.delta ?? z.pts) !== 0; }));
     var counted = {};
     if (matches) top.forEach(function (i) { counted[i] = 1; });
     var full = matches && idx.length >= K;
-    return { s: s, idx: idx, counted: counted, matches: matches, full: full, min: full ? s[idx[K - 1]].pts : 0, nextOut: full && idx.length > K ? s[idx[K]].pts : null, n: s.length };
+    return { s: s, idx: idx, counted: counted, matches: matches, sum: sum, audit: audit, full: full, min: full ? s[idx[K - 1]].pts : 0, nextOut: full && idx.length > K ? s[idx[K]].pts : null, n: s.length };
   }
   function ratingList() { return allPlayers().filter(function (p) { return p.rating_now; }).sort(function (a, b) { return b.rating_now - a.rating_now; }); }
   var rq = '';
   function pRating(name) {
     var list = ratingList(), K = D.rating_top;
     if (name && PA[name] && PA[name].rating_now) return pRatingOne(name, list);
-    var mx = list[0].rating_now, thr = median(list.filter(function (p) { return ratingInfo(p.name).full; }).map(function (p) { return ratingInfo(p.name).min; }));
+    if (!list.length) return '<h1>Рейтинг клуба</h1><p class="note">Пока нет данных рейтинга.</p>';
+    var verified = list.filter(function (p) { return ratingInfo(p.name).matches; }).length;
+    var thr = median(list.filter(function (p) { return ratingInfo(p.name).full; }).map(function (p) { return ratingInfo(p.name).min; }));
     var h = '<h1>Рейтинг клуба</h1><p class="sub">Рейтинг — сумма ' + K + ' лучших результатов за всё время (финалы, отборочные дни и межсезонки). Нажмите на игрока, чтобы увидеть, какие результаты идут в зачёт и сколько не хватает до соседей.</p>';
-    h += '<div class="grid g4">' + kpi(list.length, 'игроков в рейтинге') + kpi(esc(disp(list[0].name)), 'лидер: ' + list[0].rating_now + ' очков') + kpi(list[0].rating_now - list[1].rating_now, 'отрыв лидера от второго места') + kpi(thr == null ? '—' : f1(thr), 'типичный «порог» зачёта' + tip('Медианное значение 12-го лучшего результата: именно столько очков надо набрать, чтобы новый результат стал зачётным')) + '</div>';
+    h += '<div class="grid g4">' + kpi(list.length, 'игроков в рейтинге') + kpi(esc(disp(list[0].name)), 'лидер: ' + list[0].rating_now + ' очков') + kpi(verified + ' из ' + list.length, 'итог сходится с начислениями') + kpi(thr == null ? '—' : f1(thr), 'типичный порог зачёта' + tip('Медиана 12-го результата у игроков, чей итог сходится с начислениями')) + '</div>';
     h += '<div class="srch"><input id="rq" type="search" placeholder="Найти игрока в рейтинге" value="' + esc(rq) + '" autocomplete="off"></div>';
     var rows = list.map(function (p, i) { return { p: p, i: i }; }).filter(function (x) { return !rq || (x.p.name + ' ' + disp(x.p.name)).toLowerCase().indexOf(rq.toLowerCase()) >= 0; });
     h += '<div class="tw tall"><table class="dtab rkt"><thead><tr><th>№</th><th class="l">Игрок</th><th>' + (MOB ? 'Очки' : 'Рейтинг') + '</th><th>' + (MOB ? 'До выше' : 'До соседа выше') + '</th><th>' + (MOB ? 'Зачёт' : 'В зачёте') + '</th><th>' + (MOB ? 'Порог' : 'Порог зачёта') + tip('Очки самого слабого из зачётных результатов. Новый результат выше порога вытеснит его.') + '</th></tr></thead><tbody>';
@@ -903,6 +910,16 @@
     var p = PA[name], ri = ratingInfo(name), K = D.rating_top, pos = list.indexOf(p), up = list[pos - 1], dn = list[pos + 1];
     var h = '<p><a href="#rating">← весь рейтинг</a> · <a href="' + profilePath(name) + '">профиль игрока</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1>';
     h += '<p class="sub">Рейтинг <b>' + p.rating_now + '</b> · ' + (pos + 1) + '-е место из ' + list.length + ' · известных результатов с очками: ' + ri.n + (ri.matches && ri.n > K ? ' (в зачёте ' + K + ' лучших)' : '') + '</p>';
+    if (!ri.matches || ri.audit?.source_before != null) {
+      var source = ri.audit, diff = p.rating_now - ri.sum;
+      h += '<div class="card"><h3>Сверка рейтинга</h3><p>Сумма лучших известных начислений <b>' + f1(ri.sum) + '</b> · итог <b>' + f1(p.rating_now) + '</b> · разница <b>' + sgn(Number(diff.toFixed(2))) + '</b>.</p>';
+      if (source?.source_before != null) {
+        h += '<p class="note">Снимок источника до межсезонки — ' + f1(source.source_before) +
+          (source.source_delta == null ? '' : ' · опубликованное изменение ' + sgn(source.source_delta)) +
+          (D.rating_audit.source_date ? ' · выгрузка источника от ' + esc(D.rating_audit.source_date) : '') + '.</p>';
+      }
+      h += '</div>';
+    }
     function need(gap, who, sign) {
       var x = ri.full ? gap + ri.min : gap;
       return '<div class="card"><h3>' + sign + ' ' + link(who.name) + ' <span class="tag">' + who.rating_now + '</span></h3><p style="margin:2px 0 0">' + (gap > 0 ? (sign === '▲' ? 'До обгона <b>' + gap + '</b> оч.' + (ri.matches ? ' Для этого один новый результат должен дать не меньше <b>' + x + '</b> оч.' : '') : 'Отрыв <b>' + gap + '</b> оч.') : 'Очки равны.') + '</p></div>';
@@ -1105,12 +1122,12 @@
 
   /* ---------- калькулятор «что если» для рейтинга ---------- */
   function whatIf(name, x) {
-    var p = PA[name], ri = ratingInfo(name), list = ratingList(), K = D.rating_top;
+    var p = PA[name], ri = ratingInfo(name), list = ratingList();
     x = Math.max(0, Math.round(+x || 0));
     var gain = ri.full ? Math.max(0, x - ri.min) : x, nr = p.rating_now + gain;
-    var others = list.filter(function (o) { return o.name !== name; });
-    var oldPlace = list.indexOf(p) + 1, newPlace = others.filter(function (o) { return o.rating_now > nr; }).length + 1;
-    var passed = others.filter(function (o) { return o.rating_now >= p.rating_now && o.rating_now <= nr && o.rating_now > p.rating_now; });
+    var oldPlace = list.indexOf(p) + 1;
+    var passed = list.slice(0, oldPlace - 1).filter(function (o) { return o.rating_now < nr; });
+    var newPlace = oldPlace - passed.length;
     var weak = ri.full ? ri.s[ri.idx[K - 1]] : null;
     var out = '<div class="wires"><div class="wi-big"><span>' + p.rating_now + '</span> → <b>' + nr + '</b> <em class="' + (gain > 0 ? 'pos' : '') + '">' + (gain > 0 ? '+' + gain : '±0') + '</em></div>' +
       '<p style="margin:4px 0">Место в рейтинге: <b>' + oldPlace + '</b> → <b>' + newPlace + '</b>' + (newPlace < oldPlace ? ' 📈' : '') + '</p>';

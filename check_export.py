@@ -14,6 +14,12 @@ def check(result):
     require(len(finals) == len(result['tournaments']), 'Повторяющиеся ID финалов.')
     attendance = result['attendance']['recent']
     cutoff = result['attendance_core'].get('cutoff')
+    for name, audit in result.get('rating_audit', {}).get('players', {}).items():
+        rating = result['players'][name]['rating_now']
+        require(abs(rating - audit['known_total'] - audit['difference']) < 0.01,
+                f'Сверка рейтинга игрока «{name}» расходится с выгрузкой.')
+        if audit['matches']:
+            require(abs(audit['difference']) < 0.01, f'Неподтверждённый рейтинг игрока «{name}» отмечен как сверенный.')
     for card in result['live_tournaments'].values():
         entrants = {r['name'] for r in card['rows']}
         dates = [card['final_date']] if entrants else []
