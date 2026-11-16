@@ -69,13 +69,15 @@ def load_archive(fallback=None, path=DB):
         return _read(db)
 
 
-def save_archive(archive, path=DB, snapshot=None, warnings=(), additional_players=()):
+def save_archive(archive, path=DB, snapshot=None, warnings=(), additional_players=(), accepted=None):
     with closing(sqlite3.connect(path)) as db:
         db.row_factory = sqlite3.Row
         db.execute('PRAGMA foreign_keys = ON')
         db.executescript(SCHEMA)
         with db:
             db.execute('BEGIN IMMEDIATE')
+            if 'accepted' not in {row['name'] for row in db.execute('PRAGMA table_info(import_snapshots)')}:
+                db.execute('ALTER TABLE import_snapshots ADD COLUMN accepted TEXT')
             columns = {row['name'] for row in db.execute('PRAGMA table_info(day_results)')}
             for field in DAY_FIELDS:
                 if field not in columns:
@@ -122,8 +124,10 @@ def save_archive(archive, path=DB, snapshot=None, warnings=(), additional_player
                 last = db.execute('SELECT digest FROM import_snapshots WHERE source=? ORDER BY id DESC LIMIT 1',
                                   (source,)).fetchone()
                 if last is None or last['digest'] != digest:
-                    db.execute('INSERT INTO import_snapshots (source, fetched, digest, payload, warnings) VALUES (?, ?, ?, ?, ?)',
-                               (source, snapshot['fetched'], digest, payload, json.dumps(warnings, ensure_ascii=False)))
+                    db.execute('INSERT INTO import_snapshots (source, fetched, digest, payload, warnings, accepted) VALUES (?, ?, ?, ?, ?, ?)',
+                               (source, snapshot['fetched'], digest, payload,
+                                json.dumps(warnings, ensure_ascii=False),
+                                json.dumps(accepted, ensure_ascii=False) if accepted is not None else None))
 
 
 def player_ids(path=DB):
@@ -137,3 +141,13 @@ def rating_snapshots(path=DB):
             return []
         return [json.loads(payload) for (payload,) in db.execute(
             "SELECT payload FROM import_snapshots WHERE json_extract(payload, '$.title') LIKE '%3-9%' ORDER BY id")]
+
+
+def import_journal(path=DB):
+    from import_journal import summarize_snapshots
+
+    with closing(sqlite3.connect(path)) as db:
+        rows = db.execute('SELECT source, fetched, payload, warnings, accepted FROM import_snapshots ORDER BY id DESC LIMIT 30')
+        return summarize_snapshots((source, fetched, json.loads(page), json.loads(warnings),
+                                    json.loads(accepted) if accepted is not None else None)
+                                   for source, fetched, page, warnings, accepted in rows)

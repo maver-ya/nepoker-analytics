@@ -564,6 +564,11 @@ td.l a.pa .av{margin-right:0}
 .live-tournament-list:empty{display:none}
 .tournament-picker{display:grid;gap:6px;margin-bottom:12px}
 .tournament-picker select{width:100%;min-width:0;font:inherit}
+.season-pickers{display:grid;grid-template-columns:minmax(74px,auto) minmax(0,1fr);gap:12px;margin:12px 0}
+.season-pickers label{display:grid;gap:4px;min-width:0}
+.season-pickers select{width:100%;min-width:0;font:inherit}
+.journal-card p{margin:4px 0}
+.journal-card ul{margin:8px 0 0;padding-left:20px}
 .day-heading{scroll-margin-top:110px}
 .hbtn[hidden]{display:none}
 @media (max-width:360px){

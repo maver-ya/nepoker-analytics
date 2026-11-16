@@ -279,7 +279,7 @@
     h += '</div>';
     }
     h += '<h2>Разделы</h2><div class="tiles">' +
-      [['#heat', '🗺', 'Карта', 'игрок × турнир'], ['#compare', '⚖', 'Сравнение', 'двух игроков'], ['#rating', '📈', 'Рейтинг', '12 лучших результатов'], ['#fame', '🏛', 'Зал славы', 'чемпионы и рекорды'], ['#fun', '✨', 'Интересное', 'номинации, метрики, охота'], ['#report', '📝', 'Отчёт', 'текст и картинки']]
+      [['#heat', '🗺', 'Карта', 'игрок × турнир'], ['#compare', '⚖', 'Сравнение', 'двух игроков'], ['#rating', '📈', 'Рейтинг', '12 лучших результатов'], ['#season', '📅', 'Итоги сезона', 'клуб и игроки по годам'], ['#fame', '🏛', 'Зал славы', 'чемпионы и рекорды'], ['#fun', '✨', 'Интересное', 'номинации, метрики, охота'], ['#report', '📝', 'Отчёт', 'текст и картинки']]
         .map(function (x) { return '<a class="tile" href="' + x[0] + '"><span class="ti">' + x[1] + '</span><b>' + x[2] + '</b><span>' + x[3] + '</span></a>'; }).join('') + '</div>';
     if (ES.length) h += '<h2>Стек и итог по финалам в выборке</h2><p class="note">Каждая точка — один финалист: чем больше его доля фишек на старте, тем правее. Чем выше итоговое место — тем выше точка.</p><div class="chart">' + scatter() + '</div>' + capScatter();
     return h;
@@ -420,15 +420,17 @@
   }
   function pPlayer(name) {
     var qualifiers = playerQualifierResults(name), inter = interBlock(name), attendance = playerAttendance(name), p = PA[name];
+    var season = p ? '<p><a href="#season/' + T[T.length - 1].year + '/' + profilePath(name).slice(9) + '">Итоги сезона игрока →</a></p>' : '';
     var rating = p?.rating_now ? '<p class="sub">Рейтинг <b>' + fmt(p.rating_now) + '</b> · <a href="#rating/' + encodeURIComponent(name) + '">Результаты игрока</a></p>' : '';
     if (!p?.finals) return qualifiers || inter || attendance || rating
-      ? '<p><a href="#players">← все игроки</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1>' + rating + attendance + qualifiers + inter
+      ? '<p><a href="#players">← все игроки</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1>' + rating + season + attendance + qualifiers + inter
       : '<h1>Игрок не найден</h1>';
     var h = '<p><a href="#players">← все игроки</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1><div class="pact"><a class="btn ghost" href="#compare/' + encodeURIComponent(name) + '">⚖ Сравнить</a><button class="btn ghost" type="button" id="pprint">🖨 Печать / PDF</button><button class="btn ghost" type="button" id="pshare">🖼 Картинкой</button><span class="note" id="pmsg"></span></div>';
     var bg = badges(name);
     var field = fieldStats(p.list);
     h += '<p class="sub">' + p.finals + ' финал(ов) в базе · лучшее место ' + Math.min.apply(null, p.places) + ' · среднее место ' + f1(p.avg_place) + '</p>';
     if (field.n) h += '<p class="sub">В среднем обыграно <b>' + percent(field.pct) + '</b> соперников за ' + field.n + ' финал(ов).' + tip('В каждом финале делим число соперников ниже игрока на число всех его соперников, затем усредняем по финалам.') + '</p>';
+    h += season;
     if (bg.length) h += '<div class="badges">' + bg.map(function (b) { return '<span class="badge ' + b[2] + '"><i>' + b[0] + '</i>' + esc(b[1]) + '</span>'; }).join('') + '</div>';
     if (p.passport) {
       var pp = p.passport, bits = [];
@@ -819,13 +821,32 @@
   }
 
   /* ---------- «О данных»: проверки ---------- */
+  function journalBlock() {
+    var rows = D.import_journal || [];
+    var h = '<h2 id="import-journal">Журнал импорта</h2><p class="note">Последние изменившиеся снимки источника. Старые снимки содержат только то, что было прочитано при загрузке.</p>';
+    if (!rows.length) return h + '<p class="note">Записей пока нет.</p>';
+    return h + '<div class="cardlist">' + rows.map(function (row) {
+      var days = Object.entries(row.days).map(function (entry) { return 'день ' + entry[0] + ' — ' + entry[1] + ' строк'; });
+      if (row.final_count) days.push('финальный протокол — ' + row.final_count + ' строк');
+      if (row.archive_count) days.push((row.archive_title || 'Архив источника') + ' — ' + row.archive_count + ' строк');
+      var ratings = Object.entries(row.rating_rows || {}).map(function (entry) { return 'день ' + entry[0] + ' — ' + entry[1]; });
+      var accepted = row.accepted?.map(function (item) {
+        return item.name + (item.day ? ', день ' + item.day : item.final ? ', итоговые места' : '') + ' — ' + item.count + ' строк';
+      });
+      return '<article class="card journal-card"><h3>' + esc(row.title || 'Снимок источника') + '</h3><p class="note">' + esc(row.fetched) + ' · <a href="' + esc(row.source) + '">Источник</a></p>' +
+        (days.length ? '<p>В источнике — ' + esc(days.join(' · ')) + '</p>' : '') +
+        (ratings.length ? '<p>Опубликованные дельты рейтинга — ' + esc(ratings.join(' · ')) + '</p>' : '') +
+        (accepted ? '<p>Принято — ' + (accepted.length ? esc(accepted.join(' · ')) : 'игровых изменений нет') + '</p>' : '') +
+        (row.warnings.length ? '<ul class="neg">' + row.warnings.map(function (warning) { return '<li>' + esc(warning) + '</li>'; }).join('') + '</ul>' : '') + '</article>';
+    }).join('') + '</div>';
+  }
   function pData() {
     var h = '<h1>О данных</h1><p class="sub">Как собираются цифры и что стоит проверить.</p><div class="cardlist">';
     h += ins('', 'Откуда данные', 'Таблицы турниров 2026 года (лист «Главная») дают результаты отборочных дней и финальный стек. Итоговые места в финалах восстановлены из очков рейтинга по формуле очки = √(N·K)/√место, поэтому место = (максимум очков / очки)². Рейтинг игрока — сумма ' + D.rating_top + ' лучших результатов.');
     h += ins('', 'Стартовый стек финала', 'Итог отборочных (по таблице) + базовый бонус (3 000, для 3-7 и 3-8 — 3 800) + трофеи за охоту, если они считаются отдельно (А-2, 3-8). Номинации не учитываются. Ранг стека — место по размеру стека среди финалистов (1 — самый большой).');
     h += ins('', 'Финалы 2025 года', 'Стеки и места восстановлены вручную по картинкам таблиц из чата клуба и по истории сайта результатов (Дойль Брансон, Тощий Джек). У однодневных турниров (Туз Весны, Сателлит, Финал финалистов) есть только места. Возможны опечатки и разные написания ников.');
     h += ins('', 'Δ мест', 'Ранг по стеку минус итоговое место. Плюс — игрок финишировал выше, чем стартовал; минус — ниже.');
-    h += '</div><h2>Проверка данных</h2>';
+    h += '</div>' + journalBlock() + '<h2>Проверка данных</h2>';
     var lv = { warn: ['Проверить', 'bad'], info: ['Заметка', ''] }, ch = (D.checks || []).slice().sort(function (x, y) { return (x.level === 'warn' ? 0 : 1) - (y.level === 'warn' ? 0 : 1); });
     h += '<div class="cardlist">' + ch.map(function (c) { var l = lv[c.level] || lv.info; return '<div class="card insight ' + l[1] + '"><h3>' + l[0] + '</h3><p>' + esc(c.text) + '</p></div>'; }).join('') + '</div>';
     h += '<h2>Как обновлять сайт</h2><div class="card"><ol><li>Положите таблицу нового турнира в папку <code>2026/…</code> и обновите <code>Данные/Рейтинг ЦИФЕРБЛАТ.xlsx</code>.</li><li>Добавьте запись о турнире в список <code>TOURNAMENTS</code> в <code>site/build_data.py</code>.</li><li>Если один человек записан по-разному — добавьте пару в <code>ALIASES</code>; красивые имена — в <code>site/names.json</code>.</li><li>Запустите <code>python build_data.py</code> в папке <code>site</code> и посмотрите вкладку «О данных» — там появятся новые замечания.</li></ol><p class="note">Межсезонку и рейтинг после неё можно обновить без Excel: <code>python update_site.py</code>. После публикации на GitHub то же делает автозапуск (<code>.github/workflows/update.yml</code>, раз в сутки).</p></div>';
@@ -1063,10 +1084,70 @@
   function evDate(e) {
     var ev = D.events[e]; if (!ev) return null;
     if (ev.date) return parseD(ev.date);
-    if (ev.tid) { var t = T.filter(function (x) { return x.id === ev.tid; })[0]; return ev.kind === 'final' && t ? parseD(t.final_date) : null; }
+    if (ev.tid) {
+      var t = T.find(function (x) { return x.id === ev.tid; });
+      var day = t?.days.find(function (d) { return Number(d.event) === Number(e); });
+      return parseD(ev.kind === 'final' ? t?.final_date : day?.date);
+    }
     var m = /день (\d+)/.exec(ev.label), cs = IT.series.filter(function (s) { return s.status === 'идёт'; })[0];
     if (m && cs && ev.kind === 'inter') { var d = cs.days.filter(function (x) { return x.n === +m[1]; })[0]; return d ? parseD(d.date) : null; }
     return null;
+  }
+
+  function pSeason(requestedYear, name) {
+    var years = Array.from(new Set(T.map(function (t) { return t.year; }))).sort(function (a, b) { return b - a; });
+    if (!years.length) return '<h1>Итоги сезона</h1><p class="note">Пока нет результатов.</p>';
+    var year = years.includes(Number(requestedYear)) ? Number(requestedYear) : years[0];
+    var finals = T.filter(function (t) { return t.year === year; });
+    var ids = new Set(finals.map(function (t) { return t.id; }));
+    var finalists = new Set(finals.flatMap(function (t) { return t.rows.map(function (r) { return r.name; }); }));
+    var dates = Object.fromEntries(Object.keys(D.events).map(function (e) { return [e, evDate(+e)?.getFullYear()]; }));
+    var ranked = allPlayers().filter(function (p) { return (p.series || []).some(function (z) { return dates[z.e] === year; }); });
+    var options = new Set([...finalists, ...ranked.map(function (p) { return p.name; })]);
+    if (name && PA[name]) options.add(name);
+    var h = '<h1>Итоги сезона</h1><p class="sub">Финалы по календарному году. Для текущего года показаны результаты на дату последней выгрузки.</p>';
+    h += '<div class="card season-pickers"><label>Год <select id="season-year">' + years.map(function (y) {
+      return '<option' + (y === year ? ' selected' : '') + '>' + y + '</option>';
+    }).join('') + '</select></label><label>Игрок <select id="season-player"><option value="">Весь клуб</option>' +
+      Array.from(options).sort(function (a, b) { return disp(a).localeCompare(disp(b), 'ru'); }).map(function (n) {
+        return '<option value="' + profilePath(n).slice(9) + '"' + (n === name ? ' selected' : '') + '>' + esc(disp(n)) + '</option>';
+      }).join('') + '</select></label></div>';
+    if (!name || !PA[name]) {
+      var club = allPlayers().filter(function (p) { return finalists.has(p.name); }).map(function (p) {
+        var runs = p.list.filter(function (r) { return ids.has(r.t); });
+        return { name: p.name, n: runs.length, wins: runs.filter(function (r) { return r.place === 1; }).length,
+                 podiums: runs.filter(function (r) { return r.place <= 3; }).length };
+      }).sort(function (a, b) { return b.wins - a.wins || b.podiums - a.podiums || b.n - a.n; });
+      h += '<div class="grid g4">' + kpi(finals.length, 'завершённых турниров') + kpi(finalists.size, 'уникальных финалистов') +
+        kpi(finals.reduce(function (sum, t) { return sum + t.rows.length; }, 0), 'выступлений в финалах') +
+        kpi(club.filter(function (p) { return p.wins; }).length, 'разных победителей') + '</div>';
+      return h + '<h2>Лидеры по победам</h2><div class="tw"><table class="dtab"><thead><tr><th class="l">Игрок</th><th>Побед</th><th>Призовых</th><th>Финалов</th></tr></thead><tbody>' +
+        club.filter(function (p) { return p.wins; }).map(function (p) {
+          return '<tr><td class="l"><a href="#season/' + year + '/' + profilePath(p.name).slice(9) + '">' + esc(disp(p.name)) + '</a></td><td>' + p.wins + '</td><td>' + p.podiums + '</td><td>' + p.n + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }
+    var player = PA[name], list = player.list.filter(function (r) { return ids.has(r.t); }), field = fieldStats(list);
+    var previousIds = new Set(T.filter(function (t) { return t.year === year - 1; }).map(function (t) { return t.id; }));
+    var prior = fieldStats(player.list.filter(function (r) { return previousIds.has(r.t); }));
+    var best = list.slice().sort(function (a, b) { return a.place - b.place || b.of - a.of; })[0];
+    h += '<h2>' + plink(name) + ' · ' + year + '</h2><div class="grid g4">' + kpi(list.length, 'финалов') +
+      kpi(list.filter(function (r) { return r.place <= 3; }).length, 'призовых мест') +
+      kpi(f1(mean(list.map(function (r) { return r.place; }))), 'среднее место') +
+      kpi(percent(field.pct), 'в среднем обыграно соперников') + '</div>';
+    if (best) h += '<p>Лучший финал — <a href="#tournaments/' + encodeURIComponent(best.t) + '">' + esc(best.short) + '</a> · ' + best.place + ' из ' + best.of + '.</p>';
+    if (prior.n && field.n) h += '<p class="note">' + (year - 1) + ' · ' + percent(prior.pct) + ' за ' + prior.n +
+      ' финал(ов) → ' + year + ' · ' + percent(field.pct) + ' за ' + field.n + ' финал(ов).</p>';
+    var priorRating = 0, changes = [];
+    (player.series || []).forEach(function (z) {
+      var gain = z.delta ?? (z.pts != null ? z.rating - priorRating : null);
+      priorRating = z.rating;
+      if (dates[z.e] === year && gain > 0) changes.push({ e: z.e, gain: gain });
+    });
+    changes.sort(function (a, b) { return b.gain - a.gain; });
+    h += '<h2>Крупнейшие прибавки к рейтингу</h2><p class="note">По событиям с известной датой. Снимки без начисления пропущены.</p>';
+    return h + (changes.length ? '<ol>' + changes.slice(0, 3).map(function (z) {
+      return '<li>' + esc(eventLabel(z.e)) + ' · +' + fmt(z.gain) + '</li>';
+    }).join('') + '</ol>' : '<p class="note">Для этого года нет датированных прибавок.</p>');
   }
   function feed() {
     var it = [];
@@ -1281,12 +1362,12 @@
     try {
       arg = decodeURIComponent((tab === 'fun' ? parts[2] : parts[1]) || '') || null;
       if (tab === 'players' || tab === 'rating' || tab === 'compare') arg = playerName(arg);
-      if (tab === 'compare') second = playerName(decodeURIComponent(parts[2] || ''));
+      if (tab === 'compare' || tab === 'season') second = playerName(decodeURIComponent(parts[2] || ''));
     } catch (error) {
       app.innerHTML = '<h1>Некорректная ссылка</h1><p><a href="#overview">Перейти на главную</a></p>';
       return;
     }
-    var pages = { overview: pOverview, tournaments: function () { return pTournaments(arg); }, players: function () { return pPlayers(arg); }, fun: function () { return pInteresting(sub, arg); }, rating: function () { return pRating(arg); }, fame: pFame, heat: pHeat, inter: function () { return pInter(arg); }, compare: function () { return pCompare(arg, second); }, report: function () { return pReport(arg); }, data: pData };
+    var pages = { overview: pOverview, tournaments: function () { return pTournaments(arg); }, players: function () { return pPlayers(arg); }, fun: function () { return pInteresting(sub, arg); }, rating: function () { return pRating(arg); }, season: function () { return pSeason(arg, second); }, fame: pFame, heat: pHeat, inter: function () { return pInter(arg); }, compare: function () { return pCompare(arg, second); }, report: function () { return pReport(arg); }, data: pData };
     var filterApplies = tab === 'overview' || tab === 'heat' || (tab === 'players' && !arg) ||
       (tab === 'fun' && (sub === 'awards' || sub === 'metrics'));
     document.getElementById('fbtn').hidden = !filterApplies;
@@ -1320,6 +1401,11 @@
   });
   document.addEventListener('change', function (ev) {
     var id = ev.target.id;
+    if (id === 'season-year' || id === 'season-player') {
+      var year = document.getElementById('season-year').value, person = document.getElementById('season-player').value;
+      location.hash = '#season/' + year + (person ? '/' + person : '');
+      return;
+    }
     if (id === 'tourney-picker') { location.hash = '#tournaments/' + encodeURIComponent(ev.target.value); return; }
     if (id === 'incl') flt.incl = ev.target.checked;
     else if (id === 'ff') flt.from = +ev.target.value;

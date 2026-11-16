@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS history_interseason_sources (
 
 GENERATED_KEYS = {'tournaments', 'players', 'events', 'interseason', 'attendance',
                   'live_tournaments', 'checks_summary', 'generated', 'player_directory', 'rating_audit',
-                  'rating_replay'}
+                  'rating_replay', 'import_journal'}
 
 
 def canonical_name(value, aliases):

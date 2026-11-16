@@ -3,12 +3,14 @@
 Используется автозапуском на GitHub (.github/workflows/update.yml), локально тоже работает:   python update_site.py
 При наличии мигрированной базы выгрузка целиком пересобирается из SQLite."""
 import json, os, datetime
+from copy import deepcopy
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 import fetch_site, build_data as bd
 from history_db import canonical_name, load_history, load_inputs, normalize_rows, save_interseasons
 from live_tournaments import date_key, ingest, named_oneday, tournament_code
-from tournament_db import load_archive, player_ids, rating_snapshots, save_archive
+from tournament_db import import_journal, load_archive, player_ids, rating_snapshots, save_archive
+from import_journal import accepted_changes
 from rating_audit import build_rating_audit
 from rating_replay import extend_39, replay
 
@@ -35,6 +37,7 @@ def main():
     page = fetch_site.fetch()
     title = page['title'].strip()
     current_source = inputs.pop('current_inter', None) if inputs is not None else None
+    previous_inter = current_source
     rating_source = inputs.pop('latest_rating_source') if inputs is not None else None
     if title.casefold() == 'межсезонка':
         if not any(page['days'].values()) or not page['dates'].get(1):
@@ -61,6 +64,7 @@ def main():
         raise ValueError('Для сборки необходима мигрированная база или прежняя выгрузка.')
     result = inputs if inputs is not None else dict(previous)
     result['live_tournaments'] = load_archive(previous.get('live_tournaments'))
+    previous_archive = deepcopy(result['live_tournaments'])
     history = load_history()
     aliases = {**bd.ALIASES, **bd.ALIAS25}
     if history is not None:
@@ -123,7 +127,9 @@ def main():
     bd.data_checks(result, {}, pl, (current[0], rating_source or current[1]), normalize)
     js_path = os.path.join(HERE, 'data', 'data.js')
     save_archive(result['live_tournaments'], snapshot=page, warnings=import_warnings,
-                 additional_players=pl)
+                 additional_players=pl, accepted=accepted_changes(previous_archive, result['live_tournaments'],
+                                                                 previous_inter, current_source))
+    result['import_journal'] = import_journal()
     result['player_directory'] = dict(ids=player_ids(), aliases=aliases)
     if inputs is not None:
         save_interseasons(result['interseason']['series'], current_source)
