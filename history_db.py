@@ -111,17 +111,49 @@ def save_history(result, aliases, path=DB, current_inter=None):
             db.execute('DELETE FROM history_rating_events')
             db.executemany('INSERT INTO history_rating_events VALUES (?, ?)',
                            ((e, json.dumps(v, ensure_ascii=False)) for e, v in events.items()))
-            for name, p in inputs['player_metadata'].items():
-                series = [z for z in p.get('series', []) if z['e'] in events]
-                if 'series' in p:
-                    p['series'] = []
-                if series:
-                    p.update(rating_now=series[-1]['rating'], rating_rank=series[-1]['rank'])
-                db.executemany('INSERT INTO history_rating_results VALUES (?, ?, ?, ?, ?)',
-                               ((ids[name], z['e'], z['pts'], z['rating'], z['rank']) for z in series))
+            _write_rating_rows(db, inputs['player_metadata'], events, ids, restore_baseline=True)
             db.executemany('INSERT OR REPLACE INTO history_inputs VALUES (?, ?)',
                            ((k, json.dumps(v, ensure_ascii=False)) for k, v in inputs.items()))
             _save_interseasons(db, result.get('interseason', {}).get('series', []), current_inter)
+
+
+def _write_rating_rows(db, metadata, events, ids, restore_baseline=False):
+    for name, p in metadata.items():
+        series = [z for z in p.get('series', []) if z['e'] in events]
+        if 'series' in p:
+            p['series'] = []
+        if series:
+            if restore_baseline:
+                p.pop('rating_now', None)
+                p.pop('rating_rank', None)
+            p.setdefault('rating_now', series[-1]['rating'])
+            p.setdefault('rating_rank', series[-1]['rank'])
+        db.executemany('INSERT INTO history_rating_results VALUES (?, ?, ?, ?, ?)',
+                       ((ids[name], z['e'], z['pts'], z['rating'], z['rank']) for z in series))
+
+
+def replace_workbook_ratings(histories, events, path=DB):
+    """Replace only the workbook ledger, retaining passports and source snapshots."""
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute('PRAGMA foreign_keys = ON')
+        db.execute('BEGIN IMMEDIATE')
+        events = {int(k): v for k, v in events.items()}
+        if any(z['e'] not in events for h in histories.values() for z in h['series']):
+            raise ValueError('Книга содержит события, отсутствующие в SQLite.')
+        db.executemany('INSERT OR IGNORE INTO history_players(name) VALUES (?)',
+                       ((name,) for name in sorted(histories)))
+        ids = dict(db.execute('SELECT name, id FROM history_players'))
+        payload = db.execute("SELECT payload FROM history_inputs WHERE key='player_metadata'").fetchone()
+        metadata = {name: {k: v for k, v in p.items() if k == 'passport'}
+                    for name, p in json.loads(payload[0]).items()}
+        for name, rating in histories.items():
+            metadata.setdefault(name, {}).update(rating)
+        db.execute('DELETE FROM history_rating_results')
+        db.executemany('INSERT OR REPLACE INTO history_rating_events VALUES (?, ?)',
+                       ((e, json.dumps(v, ensure_ascii=False)) for e, v in events.items()))
+        _write_rating_rows(db, metadata, events, ids)
+        db.execute("UPDATE history_inputs SET payload=? WHERE key='player_metadata'",
+                   (json.dumps(metadata, ensure_ascii=False),))
 
 
 def _save_interseasons(db, series, current):
@@ -225,13 +257,24 @@ def add_alias(alias, name, path=DB):
 
 
 if __name__ == '__main__':
-    from build_data import ALIAS25, ALIASES
+    from build_data import ALIAS25, ALIASES, load_rating, workbook_rating_history
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--alias', nargs=2, metavar=('ALIAS', 'NAME'))
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--alias', nargs=2, metavar=('ALIAS', 'NAME'))
+    mode.add_argument('--ratings', action='store_true')
     args = parser.parse_args()
     if args.alias:
         add_alias(*args.alias)
+    elif args.ratings:
+        from rating_audit import annotate_workbook_events
+
+        inputs = load_inputs()
+        ledger = load_rating()
+        annotate_workbook_events(inputs['events'], ledger)
+        ratings = workbook_rating_history(ledger, inputs['rating_top'])
+        replace_workbook_ratings(ratings, inputs['events'])
+        print(f'Imported ratings for {len(ratings)} players from the workbook.')
     else:
         result = json.loads(DB.with_name('data.json').read_text(encoding='utf-8'))
         current = DB.parent.parent / 'interseason' / 'current.json'

@@ -13,7 +13,7 @@
 from live_tournaments import merge_completed
 from tournament_db import load_archive
 from history_db import save_history
-from rating_audit import build_rating_audit
+from rating_audit import annotate_workbook_events, build_rating_audit
 import openpyxl, glob, json, os, re, sys, statistics as st
 st_mean = st.mean
 from openpyxl.utils import column_index_from_string as ci
@@ -537,11 +537,16 @@ def data_checks(result, events, pl, current=None, normalize=_norm_name):
         print(('[!] ' if c['level'] == 'warn' else '[i] ') + c['text'][:170], file=sys.stderr)
 
 
+def empty_player(name):
+    return dict(name=name, finals=0, wins=0, podiums=0, table=0, places=[], deltas=[], list=[],
+                avg_place=None, sd_place=None, avg_delta=None)
+
+
 def build_player_stats(result):
     pl = {}
     for t in result['tournaments']:
         for r in t['rows']:
-            p = pl.setdefault(r['name'], dict(name=r['name'], finals=0, wins=0, podiums=0, table=0, places=[], deltas=[], list=[]))
+            p = pl.setdefault(r['name'], empty_player(r['name']))
             p['finals'] += 1; p['places'].append(r['place'])
             p['wins'] += r['place'] == 1; p['podiums'] += r['place'] <= 3; p['table'] += r['place'] <= 9
             if r.get('delta') is not None: p['deltas'].append(r['delta'])
@@ -552,6 +557,26 @@ def build_player_stats(result):
         p['sd_place'] = st.pstdev(p['places']) if len(p['places']) > 1 else None
         p['avg_delta'] = st.mean(p['deltas']) if p['deltas'] else None
     return pl
+
+
+def workbook_rating_history(events, limit):
+    running = {}
+    histories = {}
+    for event, rows in sorted(events.items()):
+        day = {_norm_name(name): row['pts'] for name, row in rows.items()}
+        if len(day) != len(rows):
+            raise ValueError(f'Повторяющийся алиас в рейтинговом событии {event}.')
+        for name, points in day.items():
+            running.setdefault(name, []).append(points)
+        totals = {name: sum(sorted(values, reverse=True)[:limit]) for name, values in running.items()}
+        order = sorted(totals, key=lambda name: (-totals[name], name))
+        ranks = {name: i for i, name in enumerate(order, 1)}
+        for name, points in day.items():
+            histories.setdefault(name, []).append(
+                dict(e=event, pts=points, rating=totals[name], rank=ranks[name]))
+    order = sorted(running, key=lambda name: (-histories[name][-1]['rating'], name))
+    return {name: dict(series=histories[name], rating_now=histories[name][-1]['rating'], rating_rank=i)
+            for i, name in enumerate(order, 1)}
 
 
 def main():
@@ -660,21 +685,10 @@ def main():
 
     # --- рейтинг: история по событиям (лучшие RATING_TOP результатов, как в формуле Excel) ---
     RATING_TOP = 12
-    wsr = openpyxl.load_workbook(RATING, data_only=True)['Рейтинг Игроков']
-    names_all = [wsr.cell(r, 2).value for r in range(2, wsr.max_row + 1) if wsr.cell(r, 2).value]
-    evs = sorted(events)
-    running = {n: [] for n in names_all}
-    rating_after = {}
-    for e in evs:
-        for n in names_all:
-            if n in events[e]: running[n].append(events[e][n]['pts'])
-        rating_after[e] = {n: sum(sorted(running[n], reverse=True)[:RATING_TOP]) for n in names_all}
-    rank_after = {}
-    for e in evs:
-        order = sorted(names_all, key=lambda n: -rating_after[e][n])
-        rank_after[e] = {n: i + 1 for i, n in enumerate(order) if rating_after[e][n] > 0}
-    for e in evs: result['events'].setdefault(str(e), dict(label=f'Событие {e}', kind='other', tid=None))
+    annotate_workbook_events(result['events'], events)
     result['rating_top'] = RATING_TOP
+    for n, metadata in workbook_rating_history(events, RATING_TOP).items():
+        pl.setdefault(n, empty_player(n)).update(metadata)
     # --- паспорт из листа 'Итоги' (без дней рождения и контактов) ---
     wsi = openpyxl.load_workbook(HIST, data_only=True)['Итоги']
     passport = {}
@@ -688,9 +702,6 @@ def main():
                             hand=str(wsi.cell(r, 7).value) if wsi.cell(r, 7).value not in (None, '') else None,
                             motto=str(wsi.cell(r, 8).value) if wsi.cell(r, 8).value not in (None, '') else None)
     for n, p in pl.items():
-        if n in running:
-            p['series'] = [dict(e=e, pts=events[e][n]['pts'], rating=rating_after[e][n], rank=rank_after[e].get(n)) for e in evs if n in events[e]]
-            p['rating_now'] = rating_after[evs[-1]][n]; p['rating_rank'] = rank_after[evs[-1]].get(n)
         p['passport'] = passport.get(n)
 
     # --- проверки качества данных ---

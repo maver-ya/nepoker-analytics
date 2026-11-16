@@ -81,6 +81,9 @@ def main():
             raise ValueError(f'Алиасы связывают две истории рейтинга игрока «{target}». Требуется ручная сверка.')
         metadata[target] = player
     pl = bd.build_player_stats(result)
+    for name, player in metadata.items():
+        if player.get('series') or player.get('rating_now'):
+            pl.setdefault(name, bd.empty_player(name))
     for name, player in pl.items():
         player.update({key: value for key, value in metadata.get(name, {}).items()
                        if key not in player})

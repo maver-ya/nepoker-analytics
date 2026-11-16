@@ -382,8 +382,9 @@
   }
   function pPlayer(name) {
     var qualifiers = playerQualifierResults(name), inter = interBlock(name), attendance = playerAttendance(name), p = PA[name];
-    if (!p) return qualifiers || inter || attendance
-      ? '<p><a href="#players">← все игроки</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1>' + attendance + qualifiers + inter
+    var rating = p?.rating_now ? '<p class="sub">Рейтинг <b>' + fmt(p.rating_now) + '</b> · <a href="#rating/' + encodeURIComponent(name) + '">Результаты игрока</a></p>' : '';
+    if (!p?.finals) return qualifiers || inter || attendance || rating
+      ? '<p><a href="#players">← все игроки</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1>' + rating + attendance + qualifiers + inter
       : '<h1>Игрок не найден</h1>';
     var h = '<p><a href="#players">← все игроки</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1><div class="pact"><a class="btn ghost" href="#compare/' + encodeURIComponent(name) + '">⚖ Сравнить</a><button class="btn ghost" type="button" id="pprint">🖨 Печать / PDF</button><button class="btn ghost" type="button" id="pshare">🖼 Картинкой</button><span class="note" id="pmsg"></span></div>';
     var bg = badges(name);
@@ -559,7 +560,7 @@
     var rows = cmpRow('рейтинг', pa.rating_now, pb.rating_now, 'high') + cmpRow('место в рейтинге', pa.rating_rank, pb.rating_rank, 'low', function (v) { return v == null ? '—' : '#' + v; }) +
       cmpRow('финалов', pa.finals, pb.finals, 'high') + cmpRow('побед', pa.wins, pb.wins, 'high') + cmpRow('призовых мест (топ-3)', pa.podiums, pb.podiums, 'high') +
       cmpRow('финальных столов (топ-9)', pa.table, pb.table, 'high') + cmpRow('доля финальных столов', pct(pa), pct(pb), 'high', function (v) { return v == null ? '—' : v + '%'; }) +
-      cmpRow('среднее место', pa.avg_place, pb.avg_place, 'low', f1) + cmpRow('лучшее место', Math.min.apply(null, pa.places), Math.min.apply(null, pb.places), 'low') +
+      cmpRow('среднее место', pa.avg_place, pb.avg_place, 'low', f1) + cmpRow('лучшее место', pa.places.length ? Math.min.apply(null, pa.places) : null, pb.places.length ? Math.min.apply(null, pb.places) : null, 'low') +
       cmpRow('ср. Δ мест (стек → итог)' + tip('Ранг по стеку минус итоговое место. Плюс — игрок обычно обыгрывает свой стек'), pa.avg_delta, pb.avg_delta, 'high', f1) + cmpRow('разброс мест (меньше — стабильнее)', pa.sd_place, pb.sd_place, 'low', f1) +
       cmpRow('посещений клуба', pa.passport && pa.passport.visits, pb.passport && pb.passport.visits, 'high') +
       cmpRow('первое посещение', pa.passport && pa.passport.first, pb.passport && pb.passport.first, null, function (v) { return v ? v.split('-').reverse().join('.') : '—'; });
@@ -854,7 +855,7 @@
         return Number(exact(y)) - Number(exact(x)) || (PA[y]?.finals || 0) - (PA[x]?.finals || 0);
       }).slice(0, 8);
     }
-    function show() { var r = find(inp.value); box.innerHTML = r.map(function (n) { return '<a href="' + profilePath(n) + '">' + avatar(n, 'sm') + '<span>' + esc(disp(n)) + '</span> <span class="note">' + (PA[n] ? PA[n].finals + ' фин.' : interNames.has(n) ? 'межсезонка' : attendanceNames.has(n) ? 'посещаемость' : 'отбор') + '</span></a>'; }).join('') || (inp.value.trim() ? '<span class="note" style="padding:8px 12px;display:block">Никого не найдено</span>' : ''); box.hidden = !box.innerHTML; }
+    function show() { var r = find(inp.value); box.innerHTML = r.map(function (n) { return '<a href="' + profilePath(n) + '">' + avatar(n, 'sm') + '<span>' + esc(disp(n)) + '</span> <span class="note">' + (PA[n]?.finals ? PA[n].finals + ' фин.' : PA[n]?.rating_now ? 'рейтинг' : interNames.has(n) ? 'межсезонка' : attendanceNames.has(n) ? 'посещаемость' : 'отбор') + '</span></a>'; }).join('') || (inp.value.trim() ? '<span class="note" style="padding:8px 12px;display:block">Никого не найдено</span>' : ''); box.hidden = !box.innerHTML; }
     inp.addEventListener('input', show); inp.addEventListener('focus', show);
     inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var r = find(inp.value); if (r[0]) { location.hash = profilePath(r[0]); inp.value = ''; box.hidden = true; inp.blur(); } } if (e.key === 'Escape') { box.hidden = true; inp.blur(); } });
     box.addEventListener('click', function () { setTimeout(function () { inp.value = ''; box.hidden = true; }, 0); });
@@ -929,7 +930,12 @@
     if (ri.matches) h += whatIfBlock(name);
     h += '<h2>Рейтинг по событиям</h2><div class="chart">' + ratingChart(p) + '</div>';
     h += '<h2>Результаты игрока</h2><p class="note">' + (ri.matches ? 'Подсвечены результаты, которые входят в рейтинг (' + K + ' лучших).' : 'Известных начислений недостаточно, чтобы подтвердить зачёт и рассчитать порог.') + '</p><div class="tw tall"><table class="dtab rkt"><thead><tr><th>№</th><th class="l">Событие</th><th>Очки</th><th>Статус</th></tr></thead><tbody>';
-    ri.idx.forEach(function (i, k) { var z = ri.s[i]; h += '<tr class="' + (ri.matches ? (ri.counted[i] ? 'in' : 'out') : '') + '"><td>' + (k + 1) + '</td><td class="l">' + esc(eventLabel(z.e)) + '</td><td><b>' + z.pts + '</b></td><td>' + (ri.matches ? (ri.counted[i] ? '✓ в зачёте' : '— не в зачёте') : '—') + '</td></tr>'; });
+    ri.idx.forEach(function (i, k) {
+      var z = ri.s[i], rule = D.events[z.e]?.rating_rule;
+      var details = rule ? '<br><span class="note">Коэф. ' + rule.k + ' · поле ' +
+        rule.n + (rule.n_inferred ? ' (восстановлено)' : '') + '</span>' : '';
+      h += '<tr class="' + (ri.matches ? (ri.counted[i] ? 'in' : 'out') : '') + '"><td>' + (k + 1) + '</td><td class="l">' + esc(eventLabel(z.e)) + details + '</td><td><b>' + z.pts + '</b></td><td>' + (ri.matches ? (ri.counted[i] ? '✓ в зачёте' : '— не в зачёте') : '—') + '</td></tr>';
+    });
     return h + '</tbody></table></div>' + playerQualifierResults(name);
   }
 

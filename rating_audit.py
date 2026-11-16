@@ -1,5 +1,35 @@
 """Describe which parts of the published rating can be reproduced."""
 
+INTERSEASON_DAYS = {
+    1: ('04.12.2025', 900), 2: ('11.12.2025', 900),
+    3: ('18.12.2025', 900), 4: ('25.12.2025', 900),
+    14: ('26.02.2026', 900), 15: ('05.03.2026', 900),
+    16: ('19.03.2026', 900), 17: ('26.03.2026', 900),
+    28: ('21.05.2026', 900), 29: ('28.05.2026', 900),
+    30: ('04.06.2026', 1300), 32: ('11.06.2026', 1300),
+}
+TOURNAMENT_COEFFICIENTS = (350, 550, 750, 1800, 2800, 3800)
+
+
+def annotate_workbook_events(events, ledger):
+    from math import floor, sqrt
+
+    for number, rows in ledger.items():
+        details = events.setdefault(str(number), dict(label=f'Событие {number}', kind='other', tid=None))
+        count = len(rows)
+        if number in INTERSEASON_DAYS:
+            date, coefficient = INTERSEASON_DAYS[number]
+            details.update(label=f'Межсезонка · {date}', kind='inter_day', date=date,
+                           rating_rule=dict(k=coefficient, n=40 if number == 29 else count,
+                                            n_inferred=number == 29))
+            continue
+        scores = sorted((row['pts'] for row in rows.values()), reverse=True)
+        for coefficient in TOURNAMENT_COEFFICIENTS:
+            if all(floor(sqrt(count * coefficient / place) + 0.5) == points
+                   for place, points in enumerate(scores, 1)):
+                details['rating_rule'] = dict(k=coefficient, n=count)
+                break
+
 
 def build_rating_audit(result, source=None, normalize=str):
     limit = result['rating_top']
