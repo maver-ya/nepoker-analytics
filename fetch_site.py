@@ -15,7 +15,7 @@ def get(u):
 
 def parse_arrays(js):
     out = {}
-    for m in re.finditer(r'^const[ \t]+(\w+)[ \t]*=[ \t]*\[(.*?)\][ \t]*;', js, re.M | re.S):
+    for m in re.finditer(r'(?:^|(?<=;))[ \t]*const[ \t]+(\w+)[ \t]*=[ \t]*\[(.*?)\][ \t]*;', js, re.M | re.S):
         rows = []
         for o in re.finditer(r'\{(.*?)\}', m.group(2), re.S):
             row = {}
