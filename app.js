@@ -361,8 +361,10 @@
     return out + '</svg>';
   }
   function pPlayer(name) {
-    var qualifiers = playerQualifierResults(name), p = PA[name];
-    if (!p) return qualifiers ? '<h1>' + esc(disp(name)) + '</h1>' + qualifiers : '<h1>Игрок не найден</h1>';
+    var qualifiers = playerQualifierResults(name), inter = interBlock(name), p = PA[name];
+    if (!p) return qualifiers || inter
+      ? '<p><a href="#players">← все игроки</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1>' + qualifiers + inter
+      : '<h1>Игрок не найден</h1>';
     var h = '<p><a href="#players">← все игроки</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1><div class="pact"><a class="btn ghost" href="#compare/' + encodeURIComponent(name) + '">⚖ Сравнить</a><button class="btn ghost" type="button" id="pprint">🖨 Печать / PDF</button><button class="btn ghost" type="button" id="pshare">🖼 Картинкой</button><span class="note" id="pmsg"></span></div>';
     var bg = badges(name);
     h += '<p class="sub">' + p.finals + ' финал(ов) в базе · лучшее место ' + Math.min.apply(null, p.places) + ' · среднее ' + f1(p.avg_place) + '</p>';
@@ -378,7 +380,7 @@
       (p.rating_now != null ? kpi(p.rating_now, 'рейтинг (#' + (p.rating_rank || '—') + ')') : '') + '</div>';
     h += formStrip(p) + profileInsights(name);
     h += '<h2>Рейтинг по событиям</h2><p class="note">Рейтинг — сумма ' + D.rating_top + ' лучших результатов. Золотые точки — финалы турниров; наведите курсор на точку.</p><div class="chart">' + ratingChart(p) + '</div>' + capRating(p) + (p.rating_now ? '<p class="note"><a href="#rating/' + encodeURIComponent(name) + '">Какие результаты в зачёте и сколько нужно для обгона соседей →</a></p>' : '');
-    h += interBlock(name);
+    h += inter;
     h += qualifiers;
     h += '<h2>История финалов</h2><div class="tw"><table class="htab"><thead><tr><th class="l">Турнир</th><th>Место</th><th>из</th><th>Ранг стека</th><th>Δ мест</th><th>Стек</th><th>Дней</th><th>Дневная форма</th></tr></thead><tbody>';
     p.list.forEach(function (l) {
@@ -518,8 +520,8 @@
       }
       inp.addEventListener('input', show); inp.addEventListener('focus', show);
       inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var r = find(inp.value); if (r[0]) go(r[0]); } if (e.key === 'Escape') { box.hidden = true; inp.blur(); } });
-      box.addEventListener('mousedown', function (e) { var l = e.target.closest('a[data-n]'); if (l) { e.preventDefault(); go(l.dataset.n); } });
-      document.addEventListener('click', function (e) { if (!e.target.closest('.cmpq')) box.hidden = true; });
+      box.addEventListener('click', function (e) { var l = e.target.closest('a[data-n]'); if (l) { e.preventDefault(); go(l.dataset.n); } });
+      inp.parentNode.addEventListener('focusout', function (e) { if (!inp.parentNode.contains(e.relatedTarget)) box.hidden = true; });
     });
   }
 
@@ -631,6 +633,7 @@
   }
 
   function pMetrics() {
+    if (!ES.length) return '<h1>Метрики</h1>' + filterBar() + '<p class="note">В выборке нет финалов с известными стеками.</p><h2>Сила отборочных дней</h2>' + daysTable();
     var h = '<h1>Метрики</h1><p class="sub">Базовые показатели из концепта: как реализуется стек, проклятие чиплидера, камбеки. Считаются по турнирам, где известны финальные стеки (' + stackTs.length + ' из ' + T.length + ').</p>' + filterBar();
     h += '<h2>1. Проклятие чиплидера</h2><div class="tw"><table class="mt1"><thead><tr><th class="l">Турнир</th><th class="l">Чиплидер по стеку</th><th>Его место</th><th class="l">Победитель</th><th>Ранг стека победителя' + tip('Каким по размеру стека стартовал победитель: 1 — самым большим') + '</th><th>Ср. место топ-3 стеков' + tip('Среднее итоговое место трёх крупнейших стеков') + '</th></tr></thead><tbody>';
     stackTs.forEach(function (t) { h += '<tr><td class="l"><a class="pl" href="#tournaments/' + t.id + '">' + esc(t.short) + '</a></td><td class="l">' + link(t.chip_leader.name) + '</td><td class="' + (t.chip_leader.place === 1 ? 'pos' : '') + '">' + t.chip_leader.place + '</td><td class="l">' + link(t.winner.name) + '</td><td>' + t.winner.stack_rank + '</td><td>' + f1(t.top3_stack_avg_place) + '</td></tr>'; });
@@ -657,7 +660,12 @@
   }
   function daysTable() {
     var h = '<div class="tw"><table><thead><tr><th class="l">Турнир</th>' + [1, 2, 3, 4].map(function (i) { return MOB ? '<th>Д' + i + '</th>' : '<th>День ' + i + ': игроков / добор</th>'; }).join('') + '</tr></thead><tbody>';
-    T.forEach(function (t) { h += '<tr><td class="l">' + esc(t.short) + '</td>' + [0, 1, 2, 3].map(function (i) { var d = t.days[i]; return '<td>' + (d ? d.players + ' / ' + (d.addon_rate == null ? '—' : Math.round(d.addon_rate * 100) + '%') : '—') + '</td>'; }).join('') + '</tr>'; });
+    var tournaments = TA.filter(function (t) { return t.days.length || t.live_schedule; });
+    tournaments.forEach(function (t) { h += '<tr><td class="l">' + esc(lab(t)) + '</td>' + [0, 1, 2, 3].map(function (i) {
+      var d = t.days[i], published = t.live_schedule && t.live_schedule[i + 1];
+      return '<td>' + (d ? d.players + ' / ' + (d.addon_rate == null ? '—' : Math.round(d.addon_rate * 100) + '%') : published && published.players ? published.players.length + ' / —' : '—') + '</td>';
+    }).join('') + '</tr>'; });
+    if (!tournaments.length) h += '<tr><td colspan="5" class="note">Нет данных об отборочных днях в выборке.</td></tr>';
     return h + '</tbody></table></div>';
   }
 
@@ -759,7 +767,10 @@
     var last = TA.slice(-3).reverse();
     return '<h2>Последние турниры</h2><div class="grid g2">' + last.map(function (t) {
       var r = t.top || t.rows;
-      return '<div class="card"><h3><a class="pl" href="#tournaments/' + t.id + '">' + esc(t.title) + '</a> <span class="tag">' + esc(t.final_date || '') + '</span></h3><p style="margin:2px 0 6px">🥇 ' + link(r[0].name) + ' · 🥈 ' + link(r[1].name) + ' · 🥉 ' + link(r[2].name) + '</p><p class="note" style="margin:0">' + t.finalists + ' финалистов · <a href="#report/' + t.id + '">автоотчёт</a></p></div>';
+      var medals = r.filter(function (row) { return row.place >= 1 && row.place <= 3; }).map(function (row) {
+        return ['🥇', '🥈', '🥉'][row.place - 1] + ' ' + link(row.name);
+      }).join(' · ');
+      return '<div class="card"><h3><a class="pl" href="#tournaments/' + t.id + '">' + esc(t.title) + '</a> <span class="tag">' + esc(t.final_date || '') + '</span></h3><p style="margin:2px 0 6px">' + medals + '</p><p class="note" style="margin:0">' + t.finalists + ' финалистов · <a href="#report/' + t.id + '">автоотчёт</a></p></div>';
     }).join('') + '</div>';
   }
   function setupChrome() {
@@ -794,13 +805,15 @@
   function setupSearch() {
     var inp = document.getElementById('gs'), box = document.getElementById('gsr'); if (!inp) return;
     var names = new Set(Object.keys(PA));
+    var interNames = new Set(IT.alltime.map(function (p) { return p.name; }));
+    interNames.forEach(function (name) { names.add(name); });
     liveTournaments.concat(T).forEach(function (t) {
       Object.values(t.live_schedule || t.schedule || {}).forEach(function (day) {
         (day.players || []).forEach(function (p) { names.add(p.name); });
       });
     });
     function find(q) { q = q.trim().toLowerCase(); if (!q) return []; return Array.from(names).filter(function (n) { return (n + ' ' + disp(n)).toLowerCase().indexOf(q) >= 0; }).sort(function (x, y) { return (PA[y] ? PA[y].finals : 0) - (PA[x] ? PA[x].finals : 0); }).slice(0, 8); }
-    function show() { var r = find(inp.value); box.innerHTML = r.map(function (n) { return '<a href="#players/' + encodeURIComponent(n) + '">' + avatar(n, 'sm') + '<span>' + esc(disp(n)) + '</span> <span class="note">' + (PA[n] ? PA[n].finals + ' фин.' : 'отбор') + '</span></a>'; }).join('') || (inp.value.trim() ? '<span class="note" style="padding:8px 12px;display:block">Никого не найдено</span>' : ''); box.hidden = !box.innerHTML; }
+    function show() { var r = find(inp.value); box.innerHTML = r.map(function (n) { return '<a href="#players/' + encodeURIComponent(n) + '">' + avatar(n, 'sm') + '<span>' + esc(disp(n)) + '</span> <span class="note">' + (PA[n] ? PA[n].finals + ' фин.' : interNames.has(n) ? 'межсезонка' : 'отбор') + '</span></a>'; }).join('') || (inp.value.trim() ? '<span class="note" style="padding:8px 12px;display:block">Никого не найдено</span>' : ''); box.hidden = !box.innerHTML; }
     inp.addEventListener('input', show); inp.addEventListener('focus', show);
     inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var r = find(inp.value); if (r[0]) { location.hash = '#players/' + encodeURIComponent(r[0]); inp.value = ''; box.hidden = true; inp.blur(); } } if (e.key === 'Escape') { box.hidden = true; inp.blur(); } });
     box.addEventListener('click', function () { setTimeout(function () { inp.value = ''; box.hidden = true; }, 0); });
@@ -995,7 +1008,7 @@
     IT.series.forEach(function (s) { var st = s.standings.slice().sort(function (a, b) { return b.win - a.win; }), i = -1; st.forEach(function (x, k) { if (x.name === name) i = k; }); if (i >= 0) rows.push({ s: s, rank: i + 1, x: st[i] }); });
     if (!rows.length) return '';
     var ia = (IT.alltime || []).filter(function (x) { return x.name === name; })[0], h = '<h2>Межсезонки</h2>';
-    if (ia) h += '<div class="grid g4">' + kpi(ia.series, 'серий сыграно') + kpi((ia.win > 0 ? '+' : '') + fmt(ia.win), 'фишек за всё время') + kpi('+' + fmt(ia.best), 'лучший день') + kpi(ia.series_wins, 'серий выиграно') + '</div>';
+    if (ia) h += '<div class="grid g4">' + kpi(ia.series, 'серий сыграно') + kpi((ia.win > 0 ? '+' : '') + fmt(ia.win), 'фишек за всё время') + kpi((ia.best > 0 ? '+' : '') + fmt(ia.best), 'лучший день') + kpi(ia.series_wins, 'серий выиграно') + '</div>';
     h += '<div class="tw"><table class="dtab itb"><thead><tr><th class="l">Серия</th><th>Место</th><th>Дней</th><th>Итог</th></tr></thead><tbody>' + rows.slice(-8).reverse().map(function (r) { return '<tr><td class="l"><a class="pl" href="#inter/' + r.s.id + '">' + esc(interTitle(r.s)) + '</a></td><td>' + r.rank + ' из ' + r.s.standings.length + '</td><td>' + r.x.days + '</td><td class="' + (r.x.win > 0 ? 'pos' : (r.x.win < 0 ? 'neg' : '')) + '">' + (r.x.win > 0 ? '+' : '') + fmt(r.x.win) + '</td></tr>'; }).join('') + '</tbody></table></div>';
     return h;
   }
@@ -1138,11 +1151,18 @@
   function route(keep) {
     var parts = location.hash.replace(/^#/, '').split('/'), tab = parts[0] || 'overview';
     if (tab === 'metrics' || tab === 'hunt') { parts = ['fun', tab].concat(parts.slice(1)); try { history.replaceState(null, '', '#' + parts.join('/')); } catch (e) {} tab = 'fun'; }
-    var sub = tab === 'fun' ? (parts[1] || 'awards') : null, argRaw = tab === 'fun' ? parts[2] : parts[1], arg = argRaw ? decodeURIComponent(argRaw) : null;
-    var pages = { overview: pOverview, tournaments: function () { return pTournaments(arg); }, players: function () { return pPlayers(arg); }, fun: function () { return pInteresting(sub, arg); }, rating: function () { return pRating(arg); }, fame: pFame, heat: pHeat, inter: function () { return pInter(arg); }, hunt: function () { return pHunt(arg); }, compare: function () { return pCompare(parts[1] ? decodeURIComponent(parts[1]) : null, parts[2] ? decodeURIComponent(parts[2]) : null); }, report: function () { return pReport(arg); }, data: pData };
-    var gated = tab === 'fun' && (sub === 'hunt' || sub === 'visits') ? '' : tab, needsData = { overview: 1, fun: 1 }, needsT = { overview: 1, fun: 1, heat: 1 };
+    var sub = tab === 'fun' ? (parts[1] || 'awards') : null, arg, second;
+    try {
+      arg = decodeURIComponent((tab === 'fun' ? parts[2] : parts[1]) || '') || null;
+      if (tab === 'compare') second = decodeURIComponent(parts[2] || '') || null;
+    } catch (error) {
+      app.innerHTML = '<h1>Некорректная ссылка</h1><p><a href="#overview">Перейти на главную</a></p>';
+      return;
+    }
+    var pages = { overview: pOverview, tournaments: function () { return pTournaments(arg); }, players: function () { return pPlayers(arg); }, fun: function () { return pInteresting(sub, arg); }, rating: function () { return pRating(arg); }, fame: pFame, heat: pHeat, inter: function () { return pInter(arg); }, compare: function () { return pCompare(arg, second); }, report: function () { return pReport(arg); }, data: pData };
+    var gated = tab === 'fun' && sub !== 'awards' ? '' : tab, needsData = { overview: 1, fun: 1 }, needsT = { overview: 1, fun: 1, heat: 1 };
     if ((needsT[gated] || (tab === 'players' && !arg)) && (!TA.length || (needsData[gated] && !ES.length))) {
-      app.innerHTML = '<h1>Нет данных</h1>' + filterBar() + '<p class="note">В выбранном периоде нет турниров' + (TA.length ? ' с известными стеками' : '') + '. Расширьте период или включите нестандартные форматы.</p>';
+      app.innerHTML = (tab === 'overview' ? liveTournaments.map(liveCard).join('') : '') + '<h1>Нет данных по выбранным финалам</h1>' + filterBar() + '<p class="note">В выбранном периоде нет турниров' + (TA.length ? ' с известными стеками' : '') + '. Расширьте период или включите нестандартные форматы.</p>';
       document.querySelectorAll('#nav a').forEach(function (x) { x.classList.toggle('on', x.dataset.t === tab); });
       return;
     }
