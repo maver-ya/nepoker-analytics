@@ -198,7 +198,7 @@
         (players.length ? '<div class="tw"><table><thead><tr><th>№</th><th class="l">Игрок</th><th>Итог</th></tr></thead><tbody>' +
           players.map(function (p, i) {
             return '<tr><td>' + (i + 1) + '</td><td class="l">' +
-              (D.players[p.name] ? plink(p.name) : esc(disp(p.name))) +
+              plink(p.name) +
               '</td><td>' + fmt(p.total) + '</td></tr>';
           }).join('') + '</tbody></table></div>' : '<p class="note">Ожидаем результаты дня.</p>');
     }).join('');
@@ -259,7 +259,10 @@
   var curT = null;
   function pTournaments(id) {
     var listed = T.concat(liveTournaments);
-    var t = listed.find(function (x) { return x.id === id; }) || listed[listed.length - 1];
+    var archived = Object.values(D.live_tournaments || {}).find(function (x) { return x.id === id; });
+    var t = listed.find(function (x) {
+      return x.id === id || (archived && x.short === archived.short && x.year === archived.year);
+    }) || listed[listed.length - 1];
     var years = []; listed.forEach(function (x) { if (years.indexOf(x.year) < 0) years.push(x.year); }); years.sort(function (p, q) { return q - p; });
     var h = '<h1>Турниры</h1><div class="tgroups">' + years.map(function (y) {
       var list = listed.filter(function (x) { return x.year === y; });
@@ -358,7 +361,8 @@
     return out + '</svg>';
   }
   function pPlayer(name) {
-    var p = PA[name]; if (!p) return '<h1>Игрок не найден</h1>';
+    var qualifiers = playerQualifierResults(name), p = PA[name];
+    if (!p) return qualifiers ? '<h1>' + esc(disp(name)) + '</h1>' + qualifiers : '<h1>Игрок не найден</h1>';
     var h = '<p><a href="#players">← все игроки</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1><div class="pact"><a class="btn ghost" href="#compare/' + encodeURIComponent(name) + '">⚖ Сравнить</a><button class="btn ghost" type="button" id="pprint">🖨 Печать / PDF</button><button class="btn ghost" type="button" id="pshare">🖼 Картинкой</button><span class="note" id="pmsg"></span></div>';
     var bg = badges(name);
     h += '<p class="sub">' + p.finals + ' финал(ов) в базе · лучшее место ' + Math.min.apply(null, p.places) + ' · среднее ' + f1(p.avg_place) + '</p>';
@@ -375,6 +379,7 @@
     h += formStrip(p) + profileInsights(name);
     h += '<h2>Рейтинг по событиям</h2><p class="note">Рейтинг — сумма ' + D.rating_top + ' лучших результатов. Золотые точки — финалы турниров; наведите курсор на точку.</p><div class="chart">' + ratingChart(p) + '</div>' + capRating(p) + (p.rating_now ? '<p class="note"><a href="#rating/' + encodeURIComponent(name) + '">Какие результаты в зачёте и сколько нужно для обгона соседей →</a></p>' : '');
     h += interBlock(name);
+    h += qualifiers;
     h += '<h2>История финалов</h2><div class="tw"><table class="htab"><thead><tr><th class="l">Турнир</th><th>Место</th><th>из</th><th>Ранг стека</th><th>Δ мест</th><th>Стек</th><th>Дней</th><th>Дневная форма</th></tr></thead><tbody>';
     p.list.forEach(function (l) {
       var t = T.filter(function (x) { return x.id === l.t; })[0], row = t && t.rows.filter(function (r) { return r.name === name; })[0];
@@ -788,8 +793,14 @@
   }
   function setupSearch() {
     var inp = document.getElementById('gs'), box = document.getElementById('gsr'); if (!inp) return;
-    function find(q) { q = q.trim().toLowerCase(); if (!q) return []; return Object.keys(PA).filter(function (n) { return (n + ' ' + disp(n)).toLowerCase().indexOf(q) >= 0; }).sort(function (x, y) { return PA[y].finals - PA[x].finals; }).slice(0, 8); }
-    function show() { var r = find(inp.value); box.innerHTML = r.map(function (n) { return '<a href="#players/' + encodeURIComponent(n) + '">' + avatar(n, 'sm') + '<span>' + esc(disp(n)) + '</span> <span class="note">' + PA[n].finals + ' фин.</span></a>'; }).join('') || (inp.value.trim() ? '<span class="note" style="padding:8px 12px;display:block">Никого не найдено</span>' : ''); box.hidden = !box.innerHTML; }
+    var names = new Set(Object.keys(PA));
+    liveTournaments.concat(T).forEach(function (t) {
+      Object.values(t.live_schedule || t.schedule || {}).forEach(function (day) {
+        (day.players || []).forEach(function (p) { names.add(p.name); });
+      });
+    });
+    function find(q) { q = q.trim().toLowerCase(); if (!q) return []; return Array.from(names).filter(function (n) { return (n + ' ' + disp(n)).toLowerCase().indexOf(q) >= 0; }).sort(function (x, y) { return (PA[y] ? PA[y].finals : 0) - (PA[x] ? PA[x].finals : 0); }).slice(0, 8); }
+    function show() { var r = find(inp.value); box.innerHTML = r.map(function (n) { return '<a href="#players/' + encodeURIComponent(n) + '">' + avatar(n, 'sm') + '<span>' + esc(disp(n)) + '</span> <span class="note">' + (PA[n] ? PA[n].finals + ' фин.' : 'отбор') + '</span></a>'; }).join('') || (inp.value.trim() ? '<span class="note" style="padding:8px 12px;display:block">Никого не найдено</span>' : ''); box.hidden = !box.innerHTML; }
     inp.addEventListener('input', show); inp.addEventListener('focus', show);
     inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var r = find(inp.value); if (r[0]) { location.hash = '#players/' + encodeURIComponent(r[0]); inp.value = ''; box.hidden = true; inp.blur(); } } if (e.key === 'Escape') { box.hidden = true; inp.blur(); } });
     box.addEventListener('click', function () { setTimeout(function () { inp.value = ''; box.hidden = true; }, 0); });
@@ -808,11 +819,17 @@
 
   /* ---------- рейтинг: какие результаты в зачёте ---------- */
   function ratingInfo(name) {
-    var p = PA[name], s = (p.series || []).filter(function (z) { return z.pts > 0; }), K = D.rating_top;
+    var p = PA[name], s = (p.series || []).filter(function (z) {
+      return z.pts > 0 && (!D.events[z.e] || D.events[z.e].kind !== 'inter');
+    }), K = D.rating_top;
     var idx = s.map(function (z, i) { return i; }).sort(function (a, b) { return s[b].pts - s[a].pts || a - b; });
-    var counted = {}; idx.slice(0, K).forEach(function (i) { counted[i] = 1; });
-    var full = idx.length >= K;
-    return { s: s, idx: idx, counted: counted, full: full, min: full ? s[idx[K - 1]].pts : 0, nextOut: idx.length > K ? s[idx[K]].pts : null, n: s.length };
+    var top = idx.slice(0, K), sum = top.reduce(function (total, i) { return total + s[i].pts; }, 0);
+    var matches = Math.abs(sum - p.rating_now) < 0.01 &&
+      !(p.series || []).some(function (z) { return D.events[z.e] && D.events[z.e].kind === 'inter' && z.pts !== 0; });
+    var counted = {};
+    if (matches) top.forEach(function (i) { counted[i] = 1; });
+    var full = matches && idx.length >= K;
+    return { s: s, idx: idx, counted: counted, matches: matches, full: full, min: full ? s[idx[K - 1]].pts : 0, nextOut: full && idx.length > K ? s[idx[K]].pts : null, n: s.length };
   }
   function ratingList() { return allPlayers().filter(function (p) { return p.rating_now; }).sort(function (a, b) { return b.rating_now - a.rating_now; }); }
   var rq = '';
@@ -827,7 +844,7 @@
     h += '<div class="tw tall"><table class="dtab rkt"><thead><tr><th>№</th><th class="l">Игрок</th><th>' + (MOB ? 'Очки' : 'Рейтинг') + '</th><th>' + (MOB ? 'До выше' : 'До соседа выше') + '</th><th>' + (MOB ? 'Зачёт' : 'В зачёте') + '</th><th>' + (MOB ? 'Порог' : 'Порог зачёта') + tip('Очки самого слабого из зачётных результатов. Новый результат выше порога вытеснит его.') + '</th></tr></thead><tbody>';
     rows.forEach(function (x) {
       var p = x.p, ri = ratingInfo(p.name), up = x.i ? list[x.i - 1].rating_now - p.rating_now : null;
-      h += '<tr><td>' + (x.i + 1) + '</td><td class="l"><a class="pl pa" href="#rating/' + encodeURIComponent(p.name) + '">' + avatar(p.name, 'sm') + '<span>' + esc(disp(p.name)) + '</span></a></td><td><b>' + p.rating_now + '</b></td><td class="mu2">' + (up == null ? '—' : '−' + up) + '</td><td>' + Math.min(ri.n, K) + '/' + K + '</td><td>' + (ri.full ? ri.min : '—') + '</td></tr>';
+      h += '<tr><td>' + (x.i + 1) + '</td><td class="l"><a class="pl pa" href="#rating/' + encodeURIComponent(p.name) + '">' + avatar(p.name, 'sm') + '<span>' + esc(disp(p.name)) + '</span></a></td><td><b>' + p.rating_now + '</b></td><td class="mu2">' + (up == null ? '—' : '−' + up) + '</td><td>' + (ri.matches ? Math.min(ri.n, K) + '/' + K : '—') + '</td><td>' + (ri.full ? ri.min : '—') + '</td></tr>';
     });
     if (!rows.length) h += '<tr><td colspan="6" class="note">Никого не найдено</td></tr>';
     return h + '</tbody></table></div><p class="note">«До соседа выше» — сколько очков не хватает, чтобы обогнать игрока строкой выше. Если в зачёте меньше ' + K + ' результатов, порога нет: каждый новый результат прибавляется целиком.</p>';
@@ -835,18 +852,32 @@
   function pRatingOne(name, list) {
     var p = PA[name], ri = ratingInfo(name), K = D.rating_top, pos = list.indexOf(p), up = list[pos - 1], dn = list[pos + 1];
     var h = '<p><a href="#rating">← весь рейтинг</a> · <a href="#players/' + encodeURIComponent(name) + '">профиль игрока</a></p><h1 class="ph">' + avatar(name, 'lg') + '<span>' + esc(disp(name)) + '</span></h1>';
-    h += '<p class="sub">Рейтинг <b>' + p.rating_now + '</b> · ' + (pos + 1) + '-е место из ' + list.length + ' · результатов с очками: ' + ri.n + (ri.n > K ? ' (в зачёте ' + K + ' лучших)' : '') + '</p>';
+    h += '<p class="sub">Рейтинг <b>' + p.rating_now + '</b> · ' + (pos + 1) + '-е место из ' + list.length + ' · известных результатов с очками: ' + ri.n + (ri.matches && ri.n > K ? ' (в зачёте ' + K + ' лучших)' : '') + '</p>';
     function need(gap, who, sign) {
       var x = ri.full ? gap + ri.min : gap;
-      return '<div class="card"><h3>' + sign + ' ' + link(who.name) + ' <span class="tag">' + who.rating_now + '</span></h3><p style="margin:2px 0 0">' + (gap > 0 ? (sign === '▲' ? 'Не хватает <b>' + gap + '</b> оч. Один новый результат обгонит, если он будет не меньше <b>' + x + '</b> оч.' : 'Отрыв <b>' + gap + '</b> оч.') : 'Очки равны.') + '</p></div>';
+      return '<div class="card"><h3>' + sign + ' ' + link(who.name) + ' <span class="tag">' + who.rating_now + '</span></h3><p style="margin:2px 0 0">' + (gap > 0 ? (sign === '▲' ? 'До обгона <b>' + gap + '</b> оч.' + (ri.matches ? ' Для этого один новый результат должен дать не меньше <b>' + x + '</b> оч.' : '') : 'Отрыв <b>' + gap + '</b> оч.') : 'Очки равны.') + '</p></div>';
     }
     h += '<div class="grid g2">' + (up ? need(up.rating_now - p.rating_now + 1, up, '▲') : '<div class="card"><h3>👑 Лидер рейтинга</h3><p style="margin:2px 0 0">' + (dn ? 'Отрыв от второго места: <b>' + (p.rating_now - dn.rating_now) + '</b> оч.' : '') + '</p></div>') + (dn ? need(p.rating_now - dn.rating_now, dn, '▼') : '') + '</div>';
     if (ri.full) h += cap('Порог зачёта — <b>' + ri.min + '</b> оч.: любой новый результат выше него вытеснит самый слабый из зачётных и прибавит разницу к рейтингу' + (ri.nextOut != null ? '. Сейчас первым «за бортом» стоит результат в ' + ri.nextOut + ' оч.' : '.'));
-    h += whatIfBlock(name);
+    if (ri.matches) h += whatIfBlock(name);
     h += '<h2>Рейтинг по событиям</h2><div class="chart">' + ratingChart(p) + '</div>';
-    h += '<h2>Результаты игрока</h2><p class="note">Подсвечены результаты, которые входят в рейтинг (' + K + ' лучших).</p><div class="tw tall"><table class="dtab rkt"><thead><tr><th>№</th><th class="l">Событие</th><th>Очки</th><th>Статус</th></tr></thead><tbody>';
-    ri.idx.forEach(function (i, k) { var z = ri.s[i]; h += '<tr class="' + (ri.counted[i] ? 'in' : 'out') + '"><td>' + (k + 1) + '</td><td class="l">' + esc(eventLabel(z.e)) + '</td><td><b>' + z.pts + '</b></td><td>' + (ri.counted[i] ? '✓ в зачёте' : '— не в зачёте') + '</td></tr>'; });
-    return h + '</tbody></table></div>';
+    h += '<h2>Результаты игрока</h2><p class="note">' + (ri.matches ? 'Подсвечены результаты, которые входят в рейтинг (' + K + ' лучших).' : 'Известных начислений недостаточно, чтобы подтвердить зачёт и рассчитать порог.') + '</p><div class="tw tall"><table class="dtab rkt"><thead><tr><th>№</th><th class="l">Событие</th><th>Очки</th><th>Статус</th></tr></thead><tbody>';
+    ri.idx.forEach(function (i, k) { var z = ri.s[i]; h += '<tr class="' + (ri.matches ? (ri.counted[i] ? 'in' : 'out') : '') + '"><td>' + (k + 1) + '</td><td class="l">' + esc(eventLabel(z.e)) + '</td><td><b>' + z.pts + '</b></td><td>' + (ri.matches ? (ri.counted[i] ? '✓ в зачёте' : '— не в зачёте') : '—') + '</td></tr>'; });
+    return h + '</tbody></table></div>' + playerQualifierResults(name);
+  }
+
+  function playerQualifierResults(name) {
+    var rows = [];
+    liveTournaments.concat(T).forEach(function (t) {
+      Object.entries(t.live_schedule || t.schedule || {}).forEach(function (entry) {
+        var day = entry[1], players = day.players || [];
+        var i = players.findIndex(function (p) { return p.name === name; });
+        if (i < 0) return;
+        rows.push('<tr><td class="l"><a class="pl" href="#tournaments/' + encodeURIComponent(t.id) + '">' + esc(t.title) + '</a></td><td>' + esc(entry[0]) + '</td><td>' + esc(day.date) + '</td><td>' + fmt(players[i].total) + '</td></tr>');
+      });
+    });
+    if (!rows.length) return '';
+    return '<h2>Результаты отборочных дней</h2><p class="note">Итоги из опубликованных таблиц дней. Очки рейтинга показаны отдельно.</p><div class="tw"><table class="dtab"><thead><tr><th class="l">Турнир</th><th>День</th><th>Дата</th><th>Итог</th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
   }
 
   /* ---------- зал славы ---------- */
@@ -900,6 +931,14 @@
   }
   function feed() {
     var it = [];
+    liveTournaments.concat(T).forEach(function (t) {
+      Object.entries(t.live_schedule || t.schedule || {}).forEach(function (entry) {
+        var day = entry[1], d = parseD(day.date);
+        if (!d || !(day.players || []).length) return;
+        it.push({ d: d, ico: '🃏', h: esc(t.title) + ', отборочный день ' + esc(entry[0]) +
+          ' · игроков: ' + day.players.length + ' <a href="#tournaments/' + encodeURIComponent(t.id) + '">результаты</a>' });
+      });
+    });
     T.slice(-4).forEach(function (t) {
       var pd = podiumOf(t), d = parseD(t.final_date); if (!pd.length || !d) return;
       it.push({ d: d, ico: '🏆', h: link(pd[0].name) + ' выиграл «' + esc(t.title) + '»' + (pd[1] ? ' · серебро — ' + link(pd[1].name) : '') + ' <a href="#tournaments/' + t.id + '">результаты</a>' });

@@ -5,6 +5,7 @@
 import json, os, sys, datetime
 import fetch_site, build_data as bd
 from live_tournaments import ingest
+from tournament_db import load_archive, save_archive
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 P = os.path.join(HERE, 'data', 'data.json')
@@ -16,6 +17,7 @@ def main():
         fetch_site.save_interseason(page)
     with open(P, encoding='utf-8') as fh:
         result = json.load(fh)
+    result['live_tournaments'] = load_archive(result.get('live_tournaments'))
     today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date()
     ingest(result, page, bd._norm_name, today)
     old_players = result['players']
@@ -38,6 +40,7 @@ def main():
     bd.build_interseason(result, pl, archive)
     bd.attendance_extras(result)
     bd.data_checks(result, {}, pl)
+    save_archive(result['live_tournaments'])
     result['generated'] = datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
     with open(P, 'w', encoding='utf-8') as fh:
         json.dump(result, fh, ensure_ascii=False)

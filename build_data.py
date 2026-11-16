@@ -11,6 +11,7 @@
 Места восстанавливаются по формуле рейтинга: очки = sqrt(N*K)/sqrt(место), т.е. место = (макс.очки / очки)^2.
 """
 from live_tournaments import merge_completed
+from tournament_db import load_archive
 import openpyxl, glob, json, os, re, sys, statistics as st
 st_mean = st.mean
 from openpyxl.utils import column_index_from_string as ci
@@ -433,7 +434,7 @@ def build_attendance(result):
 
 
 def attendance_extras(result):
-    """Достраивает посещаемость событиями после границы таблицы: однодневные турниры и межсезонки из результатов на сайте."""
+    """Достраивает посещаемость по опубликованным составам игровых дней и финалов."""
     import datetime as _d
     core = result.get('attendance_core')
     if not core: return
@@ -443,8 +444,20 @@ def attendance_extras(result):
     if cut:
         for t in result['tournaments']:
             if t.get('final_date') and pd(t['final_date']) > cut and t.get('rows'):
+                if t.get('live_schedule'):
+                    continue
                 one = not t.get('days') and not t.get('stack_available')
                 extra.append((pd(t['final_date']), dict(name=t['title'], kind='oneday' if one else 'tourn', who={r['name'] for r in t['rows']})))
+        completed = {(t['short'], t['year']): t for t in result['tournaments']}
+        for card in result.get('live_tournaments', {}).values():
+            final = completed.get((card['short'], card['year']), card)
+            dates = [pd(day['date']) for day in card['schedule'].values() if day.get('players')]
+            who = {p['name'] for day in card['schedule'].values() for p in day.get('players', [])}
+            if final.get('rows'):
+                dates.append(pd(final['final_date']))
+                who.update(r['name'] for r in final['rows'])
+            if dates and min(dates) > cut:
+                extra.append((min(dates), dict(name=final['title'], kind='tourn', who=who)))
         for s in result.get('interseason', {}).get('series', []):
             if s['days'] and pd(s['days'][0]['date']) > cut:
                 who = {_norm_name(p['name']) for d in s['days'] for p in d['players']}
@@ -623,8 +636,10 @@ def main():
     saved = os.path.join(HERE, 'data', 'data.json')
     if os.path.exists(saved):
         with open(saved, encoding='utf-8') as fh:
-            result['live_tournaments'] = json.load(fh).get('live_tournaments', {})
-        merge_completed(result)
+            result['live_tournaments'] = load_archive(json.load(fh).get('live_tournaments'))
+    else:
+        result['live_tournaments'] = load_archive()
+    merge_completed(result)
     pl = build_player_stats(result)
 
     # --- рейтинг: история по событиям (лучшие RATING_TOP результатов, как в формуле Excel) ---

@@ -1,8 +1,27 @@
 # -*- coding: utf-8 -*-
 """Сохраняет расписание, результаты дней и опубликованные места финала."""
+import math
 import re
 from datetime import datetime
 
+DAY_FIELDS = ('start', 'entry', 'extra', 'exit')
+
+
+def is_number(value):
+    return type(value) in (int, float) and math.isfinite(value)
+
+
+def day_rows(rows, normalize):
+    if not all(isinstance(r.get('name'), str) and r['name'].strip()
+               and is_number(r.get('total'))
+               and all(is_number(r[k]) for k in DAY_FIELDS if k in r)
+               for r in rows):
+        return []
+    players = [dict(name=normalize(r['name']), total=r['total'],
+                    **{k: r[k] for k in DAY_FIELDS if k in r}) for r in rows]
+    if len({p['name'] for p in players}) != len(players):
+        return []
+    return sorted(players, key=lambda p: -p['total'])
 
 def date_key(value):
     return datetime.strptime(value, '%d.%m.%Y').date()
@@ -23,8 +42,8 @@ def final_rows(rows, normalize):
     if any(r.get('status') == 'Участник турнира' for r in rows):
         rows = [r for r in rows if r.get('status') != 'Участник турнира']
     names = [normalize(r['name']) for r in rows]
-    if ([r['place'] for r in rows] != list(range(1, len(rows) + 1))
-            or not rows or len(set(names)) != len(rows)):
+    if (len(rows) < 3 or [r['place'] for r in rows] != list(range(1, len(rows) + 1))
+            or len(set(names)) != len(rows)):
         return []
     return [dict(name=n, place=r['place'], stack=None, points=None, visits=None, days=[])
             for n, r in zip(names, rows)]
@@ -47,13 +66,11 @@ def ingest(result, page, normalize, today):
             for day, date in page['dates'].items():
                 schedule = card['schedule'].setdefault(str(day), {})
                 schedule['date'] = date
-                players = page['days'].get(day, [])
-                if players and all('name' in p and 'total' in p for p in players):
-                    schedule['players'] = sorted(
-                        (dict(name=normalize(p['name']), total=p['total']) for p in players),
-                        key=lambda p: -p['total'])
+                players = day_rows(page['days'].get(day, []), normalize)
+                if players and len(players) >= len(schedule.get('players', [])):
+                    schedule['players'] = players
             rows = final_rows(page['final_rows'], normalize)
-            if rows:
+            if rows and date_key(final_date) <= today and len(rows) >= len(card['rows']):
                 card['rows'] = rows
 
     previous_code = tournament_code(page['previous_title'])
@@ -66,7 +83,7 @@ def ingest(result, page, normalize, today):
             if previous and all(r.get('status') for r in previous) and any(
                     r.get('status') == 'Участник финала' for r in previous):
                 rows = final_rows(previous, normalize)
-                if rows:
+                if rows and len(rows) >= len(pending[0]['rows']):
                     pending[0]['rows'] = rows
 
     for card in archive.values():
@@ -80,6 +97,10 @@ def merge_completed(result):
     automatic_ids = {t['id'] for t in archive.values()}
     tournaments = [t for t in result['tournaments'] if t['id'] not in automatic_ids]
     manual = {(t['short'], t['year']) for t in tournaments}
+    for tournament in tournaments:
+        card = archive.get(f"{tournament['short']}-{tournament['year']}")
+        if card:
+            tournament['live_schedule'] = card['schedule']
     for card in archive.values():
         if card['rows'] and (card['short'], card['year']) not in manual:
             tournaments.append(dict(
