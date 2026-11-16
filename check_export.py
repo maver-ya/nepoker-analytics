@@ -14,6 +14,8 @@ def check(result):
     require(len(finals) == len(result['tournaments']), 'Повторяющиеся ID финалов.')
     attendance = result['attendance']['recent']
     cutoff = result['attendance_core'].get('cutoff')
+    require({name for name, p in result['players'].items() if p.get('rating_now')} <= directory.keys(),
+            'В рейтинге есть игрок без ID.')
     for name, audit in result.get('rating_audit', {}).get('players', {}).items():
         rating = result['players'][name]['rating_now']
         require(abs(rating - audit['known_total'] - audit['difference']) < 0.01,

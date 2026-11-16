@@ -8,8 +8,9 @@ from tempfile import NamedTemporaryFile
 import fetch_site, build_data as bd
 from history_db import canonical_name, load_history, load_inputs, normalize_rows, save_interseasons
 from live_tournaments import date_key, ingest, tournament_code
-from tournament_db import load_archive, player_ids, save_archive
+from tournament_db import load_archive, player_ids, rating_snapshots, save_archive
 from rating_audit import build_rating_audit
+from rating_replay import extend_39, replay
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 P = os.path.join(HERE, 'data', 'data.json')
@@ -30,6 +31,7 @@ def write_atomic(path, content):
 
 def main():
     inputs = load_inputs()
+    rating_replay = inputs.pop('rating_replay_steps', []) if inputs is not None else []
     page = fetch_site.fetch()
     title = page['title'].strip()
     current_source = inputs.pop('current_inter', None) if inputs is not None else None
@@ -90,7 +92,7 @@ def main():
     result['players'] = pl
     # убираем прежние межсезонные события и добавки рейтинга
     if inputs is None:
-        result['events'] = {k: v for k, v in result['events'].items() if v['kind'] != 'inter'}
+        result['events'] = {k: v for k, v in result['events'].items() if v['kind'] not in ('inter', 'replayed')}
         for p in pl.values():
             if p.get('series'):
                 p['series'] = [z for z in p['series'] if str(z['e']) in result['events']]
@@ -107,12 +109,18 @@ def main():
     for series in archive:
         for day in series['days']:
             normalize_rows(day['players'], normalize, f"{series['title']}, день {day['n']}")
-    bd.build_interseason(result, pl, archive, current, normalize, rating_source)
-    build_rating_audit(result, rating_source or current[1], normalize)
+    bd.build_interseason(result, pl, archive, current, normalize, rating_source,
+                        apply_rating=not rating_replay)
+    audit_source = rating_source or current[1]
+    if rating_replay:
+        steps = extend_39(rating_replay, [*rating_snapshots(), page])
+        audit_source = replay(result, steps, normalize, bd.empty_player)
+    build_rating_audit(result, audit_source, normalize)
     bd.attendance_extras(result)
     bd.data_checks(result, {}, pl, (current[0], rating_source or current[1]), normalize)
     js_path = os.path.join(HERE, 'data', 'data.js')
-    save_archive(result['live_tournaments'], snapshot=page, warnings=import_warnings)
+    save_archive(result['live_tournaments'], snapshot=page, warnings=import_warnings,
+                 additional_players=pl)
     result['player_directory'] = dict(ids=player_ids(), aliases=aliases)
     if inputs is not None:
         save_interseasons(result['interseason']['series'], current_source)

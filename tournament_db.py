@@ -69,7 +69,7 @@ def load_archive(fallback=None, path=DB):
         return _read(db)
 
 
-def save_archive(archive, path=DB, snapshot=None, warnings=()):
+def save_archive(archive, path=DB, snapshot=None, warnings=(), additional_players=()):
     with closing(sqlite3.connect(path)) as db:
         db.row_factory = sqlite3.Row
         db.execute('PRAGMA foreign_keys = ON')
@@ -86,6 +86,7 @@ def save_archive(archive, path=DB, snapshot=None, warnings=()):
             names = {p['name'] for t in archive.values() for d in t['schedule'].values()
                      for p in d.get('players', [])}
             names.update(r['name'] for t in archive.values() for r in t['rows'])
+            names.update(additional_players)
             db.executemany('INSERT OR IGNORE INTO history_players(name) VALUES (?)',
                            ((name,) for name in sorted(names)))
             identities = dict(db.execute('SELECT name, id FROM history_players'))
@@ -128,3 +129,11 @@ def save_archive(archive, path=DB, snapshot=None, warnings=()):
 def player_ids(path=DB):
     with closing(sqlite3.connect(path)) as db:
         return dict(db.execute('SELECT name, id FROM history_players'))
+
+
+def rating_snapshots(path=DB):
+    with closing(sqlite3.connect(path)) as db:
+        if not db.execute("SELECT 1 FROM sqlite_master WHERE name='import_snapshots'").fetchone():
+            return []
+        return [json.loads(payload) for (payload,) in db.execute(
+            "SELECT payload FROM import_snapshots WHERE json_extract(payload, '$.title') LIKE '%3-9%' ORDER BY id")]

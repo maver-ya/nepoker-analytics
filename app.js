@@ -30,8 +30,10 @@
   var f1 = function (n) { return n == null ? '—' : (Math.round(n * 10) / 10).toString().replace('.', ','); };
   var sgn = function (n) { return n > 0 ? '+' + n : String(n); };
   var ratingChangeLabel = function (row, event) {
+    if (row.snapshot) return 'снимок рейтинга';
     var delta = row.delta ?? (event.kind === 'inter' ? row.pts : null);
-    return delta == null ? sgn(row.pts) + ' очков за событие' : 'изменение рейтинга ' + sgn(delta);
+    var points = event.kind !== 'inter' && row.pts != null ? sgn(row.pts) + ' очков за событие' : '';
+    return [points, delta == null ? '' : 'изменение рейтинга ' + sgn(delta)].filter(Boolean).join(' · ');
   };
   /* ---------- аватары и подсказки ---------- */
   function avatar(name, cls) {
@@ -724,7 +726,7 @@
   function capRating(p) {
     var s = p.series; if (!s || s.length < 3) return '';
     var best = null; s.forEach(function (z, i) {
-      var g = D.events[z.e]?.kind === 'inter' ? (z.delta ?? z.pts) : z.rating - (i ? s[i - 1].rating : 0);
+      var g = z.snapshot ? 0 : (z.delta ?? (D.events[z.e]?.kind === 'inter' ? z.pts : z.rating - (i ? s[i - 1].rating : 0)));
       if (g > 0 && (!best || g > best.g)) best = { g: g, e: z.e };
     });
     if (!best) return '';
@@ -915,9 +917,10 @@
       var source = ri.audit, diff = p.rating_now - ri.sum;
       h += '<div class="card"><h3>Сверка рейтинга</h3><p>Сумма лучших известных начислений <b>' + f1(ri.sum) + '</b> · итог <b>' + f1(p.rating_now) + '</b> · разница <b>' + sgn(Number(diff.toFixed(2))) + '</b>.</p>';
       if (source?.source_before != null) {
-        h += '<p class="note">Снимок источника до межсезонки — ' + f1(source.source_before) +
+        h += '<p class="note">Снимок источника перед событием — ' + f1(source.source_before) +
           (source.source_delta == null ? '' : ' · опубликованное изменение ' + sgn(source.source_delta)) +
-          (D.rating_audit.source_date ? ' · выгрузка источника от ' + esc(D.rating_audit.source_date) : '') + '.</p>';
+          (D.rating_audit.source_label ? ' · ' + esc(D.rating_audit.source_label) : '') +
+          (D.rating_audit.source_date ? ' · ' + esc(D.rating_audit.source_date) : '') + '.</p>';
       }
       h += '</div>';
     }
@@ -936,7 +939,15 @@
         rule.n + (rule.n_inferred ? ' (восстановлено)' : '') + '</span>' : '';
       h += '<tr class="' + (ri.matches ? (ri.counted[i] ? 'in' : 'out') : '') + '"><td>' + (k + 1) + '</td><td class="l">' + esc(eventLabel(z.e)) + details + '</td><td><b>' + z.pts + '</b></td><td>' + (ri.matches ? (ri.counted[i] ? '✓ в зачёте' : '— не в зачёте') : '—') + '</td></tr>';
     });
-    return h + '</tbody></table></div>' + playerQualifierResults(name);
+    h += '</tbody></table></div>';
+    var pending = (p.series || []).filter(function (z) { return D.events[z.e]?.kind === 'replayed' && z.pts == null && z.delta != null; });
+    if (pending.length) {
+      h += '<h2>Начисления на сверке</h2><ul>' + pending.map(function (z) {
+        var e = D.events[z.e];
+        return '<li><a href="' + esc(e.source_url) + '">' + esc(e.label) + '</a> · дельта ' + sgn(z.delta) + '</li>';
+      }).join('') + '</ul>';
+    }
+    return h + playerQualifierResults(name);
   }
 
   function playerQualifierResults(name) {
@@ -1009,6 +1020,7 @@
   /* ---------- лента событий на главной ---------- */
   function evDate(e) {
     var ev = D.events[e]; if (!ev) return null;
+    if (ev.date) return parseD(ev.date);
     if (ev.tid) { var t = T.filter(function (x) { return x.id === ev.tid; })[0]; return ev.kind === 'final' && t ? parseD(t.final_date) : null; }
     var m = /день (\d+)/.exec(ev.label), cs = IT.series.filter(function (s) { return s.status === 'идёт'; })[0];
     if (m && cs && ev.kind === 'inter') { var d = cs.days.filter(function (x) { return x.n === +m[1]; })[0]; return d ? parseD(d.date) : null; }
@@ -1134,7 +1146,7 @@
     var oldPlace = list.indexOf(p) + 1;
     var passed = list.slice(0, oldPlace - 1).filter(function (o) { return o.rating_now < nr; });
     var newPlace = oldPlace - passed.length;
-    var weak = ri.full ? ri.s[ri.idx[K - 1]] : null;
+    var weak = ri.full ? ri.s[ri.idx[D.rating_top - 1]] : null;
     var out = '<div class="wires"><div class="wi-big"><span>' + p.rating_now + '</span> → <b>' + nr + '</b> <em class="' + (gain > 0 ? 'pos' : '') + '">' + (gain > 0 ? '+' + gain : '±0') + '</em></div>' +
       '<p style="margin:4px 0">Место в рейтинге: <b>' + oldPlace + '</b> → <b>' + newPlace + '</b>' + (newPlace < oldPlace ? ' 📈' : '') + '</p>';
     if (!gain) out += '<p class="note" style="margin:0">Результат в ' + x + ' оч. не выше порога зачёта (' + ri.min + '): рейтинг не изменится.</p>';

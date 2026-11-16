@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS history_interseason_sources (
 """
 
 GENERATED_KEYS = {'tournaments', 'players', 'events', 'interseason', 'attendance',
-                  'live_tournaments', 'checks_summary', 'generated', 'player_directory', 'rating_audit'}
+                  'live_tournaments', 'checks_summary', 'generated', 'player_directory', 'rating_audit',
+                  'rating_replay'}
 
 
 def canonical_name(value, aliases):
@@ -106,7 +107,7 @@ def save_history(result, aliases, path=DB, current_inter=None):
                 for name, p in result['players'].items()
                 if 'passport' in p or 'series' in p or 'rating_now' in p
             }
-            events = {int(k): v for k, v in result['events'].items() if v['kind'] != 'inter'}
+            events = {int(k): v for k, v in result['events'].items() if v['kind'] not in ('inter', 'replayed')}
             db.execute('DELETE FROM history_rating_results')
             db.execute('DELETE FROM history_rating_events')
             db.executemany('INSERT INTO history_rating_events VALUES (?, ?)',
@@ -154,6 +155,12 @@ def replace_workbook_ratings(histories, events, path=DB):
         _write_rating_rows(db, metadata, events, ids)
         db.execute("UPDATE history_inputs SET payload=? WHERE key='player_metadata'",
                    (json.dumps(metadata, ensure_ascii=False),))
+
+
+def save_rating_replay(steps, path=DB):
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute('INSERT OR REPLACE INTO history_inputs VALUES (?, ?)',
+                   ('rating_replay_steps', json.dumps(steps, ensure_ascii=False)))
 
 
 def _save_interseasons(db, series, current):
@@ -263,9 +270,18 @@ if __name__ == '__main__':
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--alias', nargs=2, metavar=('ALIAS', 'NAME'))
     mode.add_argument('--ratings', action='store_true')
+    mode.add_argument('--rating-replay', action='store_true')
     args = parser.parse_args()
     if args.alias:
         add_alias(*args.alias)
+    elif args.rating_replay:
+        from fetch_site import get
+        from rating_replay import load_revisions
+
+        steps = load_revisions(lambda ref: get(
+            f'https://raw.githubusercontent.com/shurikshilkin/turnir-results/{ref}/script.js'))
+        save_rating_replay(steps)
+        print(f'Imported {len(steps)} rating source revisions.')
     elif args.ratings:
         from rating_audit import annotate_workbook_events
 

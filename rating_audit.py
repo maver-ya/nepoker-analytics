@@ -40,6 +40,7 @@ def build_rating_audit(result, source=None, normalize=str):
         for row in rows:
             deltas.setdefault(normalize(row['name']), []).append(row['addition'])
     audit = {}
+    replay = result.get('rating_replay')
     for name, player in result['players'].items():
         rating = player.get('rating_now')
         if rating is None:
@@ -52,8 +53,11 @@ def build_rating_audit(result, source=None, normalize=str):
         audit[name] = dict(
             known_total=subtotal,
             difference=rating - subtotal,
-            matches=abs(rating - subtotal) < 0.01 and not any(rating_delta),
+            matches=abs(rating - subtotal) < 0.01 and (
+                name not in replay['unresolved'] if replay else not any(rating_delta)),
             source_before=before.get(name),
             source_delta=sum(rating_delta) if rating_delta else None,
         )
-    result['rating_audit'] = dict(source_date=(source or {}).get('fetched'), players=audit)
+    result['rating_audit'] = dict(source_date=(source or {}).get('fetched'),
+                                  source_label=(source or {}).get('label'),
+                                  source_url=(source or {}).get('url'), players=audit)

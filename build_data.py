@@ -354,7 +354,8 @@ def parse_current_inter(cur, normalize=_norm_name):
     return s, cur
 
 
-def build_interseason(result, pl, archive=None, current=None, normalize=_norm_name, rating_source=None):
+def build_interseason(result, pl, archive=None, current=None, normalize=_norm_name, rating_source=None,
+                      apply_rating=True):
     series = [dict(s) for s in archive] if archive is not None else parse_interseasons()
     cur_series, cur = current if current is not None else load_current_inter()
     if cur_series:
@@ -377,7 +378,7 @@ def build_interseason(result, pl, archive=None, current=None, normalize=_norm_na
     result['interseason'] = dict(series=series, alltime=sorted(alltime.values(), key=lambda a: -a['win']))
     # рейтинг: добавки после дней текущей межсезонки (сайт даёт прирост рейтинга, считаем нарастающим итогом)
     rating_source = rating_source or cur
-    if rating_source and rating_source.get('rating_add'):
+    if apply_rating and rating_source and rating_source.get('rating_add'):
         base = {normalize(x['name']): x['rating'] for x in rating_source.get('rating_before', [])}
         step = {}
         last_event = max(map(int, result['events']), default=0)
