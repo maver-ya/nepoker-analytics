@@ -1108,10 +1108,10 @@
     var h = '<h1>Итоги сезона</h1><p class="sub">Финалы по календарному году. Для текущего года показаны результаты на дату последней выгрузки.</p>';
     h += '<div class="card season-pickers"><label>Год <select id="season-year">' + years.map(function (y) {
       return '<option' + (y === year ? ' selected' : '') + '>' + y + '</option>';
-    }).join('') + '</select></label><label>Игрок <select id="season-player"><option value="">Весь клуб</option>' +
+    }).join('') + '</select></label><div class="season-player-picker"><label>Поиск игрока <input id="season-search" type="search" placeholder="Имя или ник" autocomplete="off" aria-controls="season-player"></label><label>Игрок <select id="season-player"><option value="">Весь клуб</option>' +
       Array.from(options).sort(function (a, b) { return disp(a).localeCompare(disp(b), 'ru'); }).map(function (n) {
         return '<option value="' + profilePath(n).slice(9) + '"' + (n === name ? ' selected' : '') + '>' + esc(disp(n)) + '</option>';
-      }).join('') + '</select></label></div>';
+      }).join('') + '</select></label><span id="season-search-status" class="note" role="status"></span></div></div>';
     if (!name || !PA[name]) {
       var club = allPlayers().filter(function (p) { return finalists.has(p.name); }).map(function (p) {
         var runs = p.list.filter(function (r) { return ids.has(r.t); });
@@ -1347,6 +1347,37 @@
     return h + body.replace(/^<h1>[^<]*<\/h1>/, '');
   }
 
+  function setupSeasonSearch() {
+    var input = document.getElementById('season-search'), select = document.getElementById('season-player');
+    if (!input || !select) return;
+    var status = document.getElementById('season-search-status'), club = select.options[0];
+    var options = Array.from(select.options).slice(1), selected = select.value;
+    select.dataset.currentPlayer = selected;
+    var entries = options.map(function (option) {
+      var name = playerName(decodeURIComponent(option.value)), terms = [name, option.textContent];
+      Object.keys(aliases).forEach(function (alias) { if (playerName(alias) === name) terms.push(alias); });
+      return { option: option, terms: terms.map(function (term) { return term.toLowerCase(); }) };
+    });
+    function matches() {
+      var query = input.value.trim().toLowerCase();
+      return entries.filter(function (entry) {
+        return entry.terms.some(function (term) { return term.includes(query); });
+      }).sort(function (a, b) { return Number(b.terms.includes(query)) - Number(a.terms.includes(query)); });
+    }
+    input.addEventListener('input', function () {
+      var found = matches();
+      select.replaceChildren(club, ...found.map(function (entry) { return entry.option; }));
+      select.value = found.some(function (entry) { return entry.option.value === selected; }) ? selected : '';
+      status.textContent = input.value.trim() ? (found.length ? 'Найдено: ' + found.length : 'Игроки не найдены') : '';
+    });
+    input.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter' || !input.value.trim()) return;
+      event.preventDefault();
+      var first = matches()[0];
+      if (first) location.hash = '#season/' + document.getElementById('season-year').value + '/' + first.option.value;
+    });
+  }
+
   /* ---------- роутинг ---------- */
   function countUp() {
     var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1386,6 +1417,7 @@
     if (tab === 'tournaments') setupRace();
     if (tab === 'report') drawCards();
     if (tab === 'compare') setupCompare();
+    if (tab === 'season') setupSeasonSearch();
     countUp();
     var day = tab === 'tournaments' && parts[2] === 'day' && /^\d+$/.test(parts[3] || '')
       ? document.getElementById('tournament-day-' + parts[3]) : null;
@@ -1402,7 +1434,8 @@
   document.addEventListener('change', function (ev) {
     var id = ev.target.id;
     if (id === 'season-year' || id === 'season-player') {
-      var year = document.getElementById('season-year').value, person = document.getElementById('season-player').value;
+      var year = document.getElementById('season-year').value, select = document.getElementById('season-player');
+      var person = id === 'season-year' ? select.dataset.currentPlayer : select.value;
       location.hash = '#season/' + year + (person ? '/' + person : '');
       return;
     }
