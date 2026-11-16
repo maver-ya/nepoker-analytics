@@ -13,6 +13,10 @@
   var fmt = function (n) { return n == null ? '—' : Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); };
   var f1 = function (n) { return n == null ? '—' : (Math.round(n * 10) / 10).toString().replace('.', ','); };
   var sgn = function (n) { return n > 0 ? '+' + n : String(n); };
+  var ratingChangeLabel = function (row, event) {
+    var delta = row.delta ?? (event.kind === 'inter' ? row.pts : null);
+    return delta == null ? sgn(row.pts) + ' очков за событие' : 'изменение рейтинга ' + sgn(delta);
+  };
   /* ---------- аватары и подсказки ---------- */
   function avatar(name, cls) {
     var t = disp(name).replace(/[^A-Za-zА-Яа-яЁё0-9 ]/g, ' ').trim().split(/\s+/), ini = (t[0] || '?').charAt(0).toUpperCase() + (t[1] ? t[1].charAt(0).toUpperCase() : '');
@@ -354,7 +358,7 @@
     out += '<path d="' + area + '" fill="var(--green)" opacity=".12"/><polyline class="draw" pathLength="1" points="' + pts.join(' ') + '" fill="none" stroke="var(--green)" stroke-width="2.4" stroke-linejoin="round"/>';
     s.forEach(function (z) {
       var e = ev[z.e] || { label: 'Событие ' + z.e, kind: 'other' };
-      out += '<circle class="pt" cx="' + x(z.e) + '" cy="' + y(z.rating) + '" r="' + (e.kind === 'final' ? 5 : 3) + '" fill="' + (e.kind === 'final' ? 'var(--gold)' : 'var(--card)') + '" stroke="var(--green)" stroke-width="1.6"><title>' + esc(e.label) + ': +' + z.pts + ' → рейтинг ' + z.rating + (z.rank ? ', #' + z.rank + ' в рейтинге' : '') + '</title></circle>';
+      out += '<circle class="pt" cx="' + x(z.e) + '" cy="' + y(z.rating) + '" r="' + (e.kind === 'final' ? 5 : 3) + '" fill="' + (e.kind === 'final' ? 'var(--gold)' : 'var(--card)') + '" stroke="var(--green)" stroke-width="1.6"><title>' + esc(e.label) + ' · ' + ratingChangeLabel(z, e) + ' → рейтинг ' + z.rating + (z.rank ? ', #' + z.rank + ' в рейтинге' : '') + '</title></circle>';
     });
     var last = s[s.length - 1];
     out += '<text x="' + (x(last.e) - 6) + '" y="' + (y(last.rating) - 10) + '" text-anchor="end" font-size="12" font-weight="700">' + last.rating + '</text>';
@@ -500,7 +504,7 @@
     list.forEach(function (z) {
       var s = z.p.series; if (!s || s.length < 2) return;
       out += '<polyline class="draw" pathLength="1" points="' + s.map(function (q) { return x(q.e) + ',' + y(q.rating); }).join(' ') + '" fill="none" stroke="' + z.color + '" stroke-width="2.6" stroke-linejoin="round"/>';
-      s.forEach(function (q) { var e = ev[q.e] || { label: 'Событие ' + q.e, kind: 'other' }; out += '<circle cx="' + x(q.e) + '" cy="' + y(q.rating) + '" r="' + (e.kind === 'final' ? 4.5 : 2.6) + '" fill="' + z.color + '"><title>' + esc(disp(z.name)) + ' · ' + esc(e.label) + ': +' + q.pts + ' → ' + q.rating + '</title></circle>'; });
+      s.forEach(function (q) { var e = ev[q.e] || { label: 'Событие ' + q.e, kind: 'other' }; out += '<circle cx="' + x(q.e) + '" cy="' + y(q.rating) + '" r="' + (e.kind === 'final' ? 4.5 : 2.6) + '" fill="' + z.color + '"><title>' + esc(disp(z.name)) + ' · ' + esc(e.label) + ' · ' + ratingChangeLabel(q, e) + ' → ' + q.rating + '</title></circle>'; });
     });
     return out + '</svg>';
   }
@@ -838,7 +842,7 @@
     var idx = s.map(function (z, i) { return i; }).sort(function (a, b) { return s[b].pts - s[a].pts || a - b; });
     var top = idx.slice(0, K), sum = top.reduce(function (total, i) { return total + s[i].pts; }, 0);
     var matches = Math.abs(sum - p.rating_now) < 0.01 &&
-      !(p.series || []).some(function (z) { return D.events[z.e] && D.events[z.e].kind === 'inter' && z.pts !== 0; });
+      !(p.series || []).some(function (z) { return D.events[z.e] && D.events[z.e].kind === 'inter' && (z.delta ?? z.pts) !== 0; });
     var counted = {};
     if (matches) top.forEach(function (i) { counted[i] = 1; });
     var full = matches && idx.length >= K;
@@ -922,7 +926,7 @@
     var bf = T.filter(function (t) { return podiumOf(t)[0]; }).sort(function (a, b) { return b.finalists - a.finalists; })[0];
     if (bf) rec('👥', 'Самый многолюдный финал', plink(podiumOf(bf)[0].name, 'sm'), bf.finalists, 'финалистов · победитель «' + esc(bf.title) + '»');
     var rl = ratingList()[0]; if (rl) rec('📈', 'Лидер рейтинга сейчас', plink(rl.name, 'sm'), rl.rating_now, 'очков, сумма ' + D.rating_top + ' лучших результатов');
-    var bp = null; players.forEach(function (p) { (p.series || []).forEach(function (z) { if (!bp || z.pts > bp.z.pts) bp = { p: p, z: z }; }); });
+    var bp = null; players.forEach(function (p) { (p.series || []).forEach(function (z) { if (z.pts > 0 && D.events[z.e]?.kind !== 'inter' && (!bp || z.pts > bp.z.pts)) bp = { p: p, z: z }; }); });
     if (bp) rec('💎', 'Самый дорогой результат в рейтинге', plink(bp.p.name, 'sm'), '+' + bp.z.pts, esc(eventLabel(bp.z.e)));
     var ia = IT.alltime || [];
     var im = ia.slice().sort(function (a, b) { return b.win - a.win; })[0]; if (im) rec('🎰', 'Больше всех выиграл на межсезонках', plink(im.name, 'sm'), fmt(im.win), 'фишек за всё время, серий сыграно: ' + im.series);

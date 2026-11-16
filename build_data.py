@@ -330,25 +330,33 @@ def parse_interseasons():
 def load_current_inter():
     p = os.path.join(HERE, 'interseason', 'current.json')
     if not os.path.exists(p): return None, None
-    cur = json.load(open(p, encoding='utf-8'))
+    with open(p, encoding='utf-8') as fh:
+        return parse_current_inter(json.load(fh))
+
+
+def parse_current_inter(cur, normalize=_norm_name):
+    if not cur:
+        return None, None
     days = []
     for k in sorted(cur['days'], key=int):
-        rows = [dict(name=_norm_name(x['name']), entry=x.get('entry', 0), extra=x.get('extra', 0), exit=x.get('exit', 0), win=x.get('win', 0)) for x in cur['days'][k]]
-        days.append(dict(n=int(k), date=cur['dates'].get(k, ''), players=rows))
+        rows = [dict(name=normalize(x['name']), entry=x.get('entry', 0), extra=x.get('extra', 0), exit=x.get('exit', 0), win=x.get('win', 0)) for x in cur['days'][k]]
+        if rows:
+            days.append(dict(n=int(k), date=cur['dates'].get(k, ''), players=rows))
     if not days: return None, cur
     planned = len(cur.get('dates', {}))
-    first = cur['dates'].get(str(days[0]['n']), '01.01.1970').split('.')
+    first = cur['dates'].get('1', '01.01.1970').split('.')
     s = dict(id='IS' + first[2][2:] + first[1], title='Межсезонка, октябрь 2026' if first[1] == '10' else 'Межсезонка (текущая)', year=int(first[2]),
              start=f'{first[2]}-{first[1]}-{first[0]}', days=days, planned_days=planned, source=f"сайт результатов, {cur.get('fetched', '')}",
              status='завершена' if planned and len(days) == planned else 'идёт',
-             hunting=[dict(name=_norm_name(h['name']), value=h['value']) for h in cur.get('hunting', [])])
+             hunting=[dict(name=normalize(h['name']), value=h['value']) for h in cur.get('hunting', [])])
     return s, cur
 
 
-def build_interseason(result, pl, archive=None):
+def build_interseason(result, pl, archive=None, current=None, normalize=_norm_name, rating_source=None):
     series = [dict(s) for s in archive] if archive is not None else parse_interseasons()
-    cur_series, cur = load_current_inter()
-    if cur_series: series.append(cur_series)
+    cur_series, cur = current if current is not None else load_current_inter()
+    if cur_series:
+        series = [s for s in series if s['id'] != cur_series['id']] + [cur_series]
     series.sort(key=lambda s: s['start'])
     alltime = {}
     for s in series:
@@ -366,14 +374,16 @@ def build_interseason(result, pl, archive=None):
         if s['status'] == 'завершена' and s['standings']: alltime[s['standings'][0]['name']]['series_wins'] += 1
     result['interseason'] = dict(series=series, alltime=sorted(alltime.values(), key=lambda a: -a['win']))
     # рейтинг: добавки после дней текущей межсезонки (сайт даёт прирост рейтинга, считаем нарастающим итогом)
-    if cur and cur.get('rating_add'):
-        base = {_norm_name(x['name']): x['rating'] for x in cur.get('rating_before', [])}
+    rating_source = rating_source or cur
+    if rating_source and rating_source.get('rating_add'):
+        base = {normalize(x['name']): x['rating'] for x in rating_source.get('rating_before', [])}
         step = {}
-        for k in sorted(cur['rating_add'], key=int):
-            e = 52 + int(k)
+        last_event = max(map(int, result['events']), default=0)
+        for k in sorted(rating_source['rating_add'], key=int):
+            e = last_event + int(k)
             result['events'][str(e)] = dict(label=f'Межсезонка · день {k}', kind='inter', tid=None)
-            for x in cur['rating_add'][k]:
-                nm = _norm_name(x['name'])
+            for x in rating_source['rating_add'][k]:
+                nm = normalize(x['name'])
                 base[nm] = base.get(nm, 0) + x['addition']
                 step.setdefault(nm, []).append((e, x['addition'], base[nm]))
         order = sorted(base, key=lambda n: -base[n])
@@ -381,7 +391,7 @@ def build_interseason(result, pl, archive=None):
         for n, p in pl.items():
             if n in step and p.get('series') is not None:
                 for e, add, rt in step[n]:
-                    p['series'].append(dict(e=e, pts=add, rating=rt, rank=None))
+                    p['series'].append(dict(e=e, delta=add, rating=rt, rank=None))
             if n in base:
                 p['rating_now'] = base[n]; p['rating_rank'] = rank[n]
                 if p.get('series'): p['series'][-1]['rank'] = rank[n]
@@ -481,7 +491,7 @@ def attendance_extras(result):
         last_core=core['events'][-1]['name'], extra_n=len(extra))
 
 
-def data_checks(result, events, pl):
+def data_checks(result, events, pl, current=None, normalize=_norm_name):
     """Автоматические проверки после сборки: добавляются в result['checks'] и считаются в result['checks_summary']."""
     import difflib
     ch = result['checks']
@@ -499,16 +509,15 @@ def data_checks(result, events, pl):
     if cur:
         new = sorted({p['name'] for d in cur['days'] for p in d['players']} - names)
         if new:
-            ch.append(dict(level='info', text=f"В текущей межсезонке {len(new)} игроков без финалов в базе (профиль появится после первого финала): " + ', '.join(new[:12]) + ('…' if len(new) > 12 else '')))
+            ch.append(dict(level='info', text=f"В текущей межсезонке {len(new)} игроков без финалов в базе: " + ', '.join(new[:12]) + ('…' if len(new) > 12 else '')))
     # рейтинг: совпадение с рейтингом сайта результатов
-    p = os.path.join(HERE, 'interseason', 'current.json')
-    if os.path.exists(p):
-        cj = json.load(open(p, encoding='utf-8'))
+    _, cj = current if current is not None else load_current_inter()
+    if cj:
         bad = []
         for x in cj.get('rating_before', []):
-            n = _norm_name(x['name'])
+            n = normalize(x['name'])
             if n in pl and pl[n].get('series'):
-                base = [z for z in pl[n]['series'] if z['e'] <= 52]
+                base = [z for z in pl[n]['series'] if result['events'].get(str(z['e']), {}).get('kind') != 'inter']
                 if base and base[-1]['rating'] != x['rating']: bad.append(f"{n}: у нас {base[-1]['rating']}, на сайте {x['rating']}")
         if bad:
             ch.append(dict(level='warn', text=f'Рейтинг до межсезонки расходится с сайтом результатов у {len(bad)} игроков: ' + '; '.join(bad[:4]) + ('…' if len(bad) > 4 else '')))
@@ -715,7 +724,7 @@ def main():
     import datetime as _dt
     result['generated'] = _dt.datetime.now().strftime('%d.%m.%Y %H:%M')
     os.makedirs(os.path.join(HERE, 'data'), exist_ok=True)
-    save_history(result, {**ALIASES, **ALIAS25})
+    save_history(result, {**ALIASES, **ALIAS25}, current_inter=load_current_inter()[1])
     with open(os.path.join(HERE, 'data', 'data.json'), 'w', encoding='utf-8') as fh:
         json.dump(result, fh, ensure_ascii=False)
     with open(os.path.join(HERE, 'data', 'data.js'), 'w', encoding='utf-8') as fh:

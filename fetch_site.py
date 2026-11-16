@@ -59,8 +59,25 @@ def fetch():
     return parse_page(get(URL), get(URL + 'script.js'))
 
 
-def save_interseason(res, writer=None):
+def interseason_snapshot(res, previous=None):
     snapshot = {k: res[k] for k in ('source', 'fetched', 'title', 'dates', 'days', 'hunting', 'rating_before', 'rating_add')}
+    snapshot = json.loads(json.dumps(snapshot))
+    first = lambda data: data['dates'].get('1')
+    if previous and first(snapshot) and first(snapshot) == first(previous):
+        snapshot['dates'] = {**previous['dates'], **snapshot['dates']}
+        for day, rows in previous['days'].items():
+            if len(snapshot['days'].get(day, [])) < len(rows):
+                snapshot['days'][day] = rows
+        snapshot['rating_add'] = {**previous['rating_add'], **snapshot['rating_add']}
+        if not snapshot['rating_before']:
+            snapshot['rating_before'] = previous['rating_before']
+    if previous and {**previous, 'fetched': snapshot['fetched']} == snapshot:
+        return previous
+    return snapshot
+
+
+def save_interseason(res, writer=None):
+    snapshot = interseason_snapshot(res)
     os.makedirs(os.path.join(HERE, 'interseason'), exist_ok=True)
     path = os.path.join(HERE, 'interseason', 'current.json')
     payload = json.dumps(snapshot, ensure_ascii=False, indent=1)
