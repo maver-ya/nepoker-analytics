@@ -19,6 +19,8 @@ jobs:
         run: pip install openpyxl
       - name: Обновление данных
         run: python update_site.py
+      - name: Проверка выгрузки
+        run: python check_export.py
       - name: Коммит, если данные изменились
         id: publish
         run: |
