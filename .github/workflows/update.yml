@@ -20,6 +20,7 @@ jobs:
       - name: Обновление данных
         run: python update_site.py
       - name: Коммит, если данные изменились
+        id: publish
         run: |
           git config user.name "nepoker-bot"
           git config user.email "actions@users.noreply.github.com"
@@ -28,8 +29,10 @@ jobs:
             git commit -m "Автообновление результатов клуба"
             git pull --rebase origin main
             git push origin main
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Публикация GitHub Pages
+        if: steps.publish.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"

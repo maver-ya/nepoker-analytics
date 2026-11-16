@@ -32,15 +32,21 @@ def tournament_code(title):
     return '-'.join(match.groups()) if match else None
 
 
-def final_rows(rows, normalize):
-    if not rows or not all(isinstance(r.get('name'), str) and r['name'].strip()
-                           and type(r.get('place')) is int for r in rows):
+def final_rows(rows, normalize, expected_count=None):
+    if not rows:
+        return []
+    if expected_count is None:
+        # A mixed tournament table must explicitly distinguish the final field.
+        statuses = {str(r.get('status', '')).strip().casefold() for r in rows}
+        if statuses != {'участник финала', 'участник турнира'}:
+            return []
+        rows = [r for r in rows if r['status'].strip().casefold() == 'участник финала']
+    elif len(rows) != expected_count:
+        return []
+    if not all(isinstance(r.get('name'), str) and r['name'].strip()
+               and type(r.get('place')) is int for r in rows):
         return []
     rows = sorted(rows, key=lambda r: r['place'])
-    if [r['place'] for r in rows] != list(range(1, len(rows) + 1)):
-        return []
-    if any(r.get('status') == 'Участник турнира' for r in rows):
-        rows = [r for r in rows if r.get('status') != 'Участник турнира']
     names = [normalize(r['name']) for r in rows]
     if (len(rows) < 3 or [r['place'] for r in rows] != list(range(1, len(rows) + 1))
             or len(set(names)) != len(rows)):
@@ -50,6 +56,7 @@ def final_rows(rows, normalize):
 
 
 def ingest(result, page, normalize, today):
+    warnings = []
     archive = result.setdefault('live_tournaments', {})
     title = page['title']
     code = tournament_code(title)
@@ -69,9 +76,13 @@ def ingest(result, page, normalize, today):
                 players = day_rows(page['days'].get(day, []), normalize)
                 if players and len(players) >= len(schedule.get('players', [])):
                     schedule['players'] = players
-            rows = final_rows(page['final_rows'], normalize)
+                elif page['days'].get(day):
+                    warnings.append(f'{code}, день {day}: получена неполная или некорректная таблица.')
+            rows = final_rows(page['final_rows'], normalize, page.get('final_count'))
             if rows and date_key(final_date) <= today and len(rows) >= len(card['rows']):
                 card['rows'] = rows
+            elif page['final_rows']:
+                warnings.append(f'{code}: финальный протокол не прошёл проверку даты, состава или мест.')
 
     previous_code = tournament_code(page['previous_title'])
     if previous_code and re.search(r'турнир', page['previous_title'], re.I):
@@ -80,16 +91,17 @@ def ingest(result, page, normalize, today):
         if len(pending) == 1:
             # Общая турнирная таблица пригодна только с явными статусами финала.
             previous = page['previous_rows']
-            if previous and all(r.get('status') for r in previous) and any(
-                    r.get('status') == 'Участник финала' for r in previous):
-                rows = final_rows(previous, normalize)
-                if rows and len(rows) >= len(pending[0]['rows']):
-                    pending[0]['rows'] = rows
+            rows = final_rows(previous, normalize)
+            if rows and len(rows) >= len(pending[0]['rows']):
+                pending[0]['rows'] = rows
+            elif previous and not pending[0]['rows']:
+                warnings.append(f'{previous_code}: в архиве источника нет подтверждённого протокола финала.')
 
     for card in archive.values():
         card['status'] = ('Завершён' if card['rows'] else
                           'Ожидаем итоги' if today > date_key(card['final_date']) else 'Идёт отбор')
     merge_completed(result)
+    return warnings
 
 
 def merge_completed(result):

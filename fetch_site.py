@@ -45,8 +45,11 @@ def parse_page(html, js):
                dates=dates, days=days, hunting=arrays.get('huntingData', []), rating_before=arrays.get('ratingBeforeFinal', []), rating_add=add)
     final = re.search(r"showTab\('final'\)[^>]*>\s*Финал\s*[-–]\s*(\d{1,2}\.\d{1,2}\.\d{4})", html, re.I)
     previous = re.search(r"showTab\('previousResults'\)[^>]*>([^<]+)", html)
+    # Optional source contract: a count for the published results, not the qualifying quota.
+    final_count = re.search(r'^const[ \t]+finalResultsCount\s*=\s*(\d+)\s*;', js, re.M)
     res.update(final_date=final.group(1) if final else None,
                final_rows=arrays.get('finalResults', []),
+               final_count=int(final_count.group(1)) if final_count else None,
                previous_title=previous.group(1).strip() if previous else '',
                previous_rows=arrays.get('previousTournamentResults', []))
     return res
@@ -56,11 +59,21 @@ def fetch():
     return parse_page(get(URL), get(URL + 'script.js'))
 
 
-def save_interseason(res):
+def save_interseason(res, writer=None):
     snapshot = {k: res[k] for k in ('source', 'fetched', 'title', 'dates', 'days', 'hunting', 'rating_before', 'rating_add')}
     os.makedirs(os.path.join(HERE, 'interseason'), exist_ok=True)
-    with open(os.path.join(HERE, 'interseason', 'current.json'), 'w', encoding='utf-8') as fh:
-        json.dump(snapshot, fh, ensure_ascii=False, indent=1)
+    path = os.path.join(HERE, 'interseason', 'current.json')
+    payload = json.dumps(snapshot, ensure_ascii=False, indent=1)
+    if os.path.isfile(path):
+        with open(path, encoding='utf-8') as fh:
+            old = json.load(fh)
+        if {**old, 'fetched': snapshot['fetched']} == json.loads(payload):
+            return
+    if writer:
+        writer(path, payload)
+    else:
+        with open(path, 'w', encoding='utf-8') as fh:
+            fh.write(payload)
 
 
 def main():
